@@ -8,6 +8,7 @@
   - answer には簡単な HTML を使える（`<b>`＝キーワード、`<br>`＝改行）
 - `build.py`: CSV から `企業法_一問一答.pdf` を作る（Chrome のヘッドレス印刷、フォントは Noto Sans CJK JP）
 - 実行: `python3 build.py`
+- `index.html`: GitHub Pages（main の直下）の入口。https://hokuto-create.github.io/kigyoho/ を開くと、毎回 `?v=時刻` を付けて最新の PDF に飛ぶ
 
 ## ルール
 - 問題はユーザーが作る（テキストの頁つき）。Claude は勝手に問題を増やさない
