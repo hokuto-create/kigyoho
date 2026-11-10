@@ -56,6 +56,19 @@ def render(with_answers=True):
 <thead><tr><th>チェック</th><th>No</th><th>頁</th><th>問題</th><th>答え</th></tr></thead>
 <tbody>{''.join(rows)}</tbody></table></body></html>"""
 
+FONT = "Noto Sans CJK JP"
+
+def check_font():
+    # フォントがないと Chrome が黙って別のフォントで印刷してしまうので、先に止める
+    if not shutil.which("fc-list"):
+        print(f"注意: fc-list がないため {FONT} の有無を確認できません")
+        return
+    found = subprocess.run(["fc-list", f":family={FONT}"], capture_output=True, text=True).stdout
+    if not found.strip():
+        raise SystemExit(f"エラー: フォント {FONT} が見つかりません。\n"
+                         "  Linux: apt-get install -y fonts-noto-cjk を実行してから、もう一度実行してください。")
+
+check_font()
 out = BASE
 (out / "kigyoho.html").write_text(render(), encoding="utf-8")
 chrome = next(c for c in ["google-chrome","chromium","chromium-browser","/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"] if shutil.which(c) or pathlib.Path(c).exists())
