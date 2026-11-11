@@ -29,7 +29,7 @@ def load():
                 if not rows:
                     if h1: rows.append(("h1", h1))
                     if h2: rows.append(("h2", h2))
-                rows.append((r["no"], r["page"], r["question"], r["answer"]))
+                rows.append((r["no"], r["page"], r["question"], r["answer"], (r.get("level") or "").strip() == "上"))
     for _, rows in lessons:
         # 回の末尾に問題のない見出しが残っていたら外す（次の回の頭に繰り返して載る）
         while rows and rows[-1][0] in ("h1", "h2"):
@@ -48,7 +48,11 @@ thead th { background: #2f4a6d; color: #fff; font-weight: 500; font-size: 9pt;
   padding: 2mm 1.5mm; }
 td { border-bottom: .3mm solid #c8ced6; padding: 2.2mm 1.5mm; vertical-align: top; }
 tr { break-inside: avoid; }
-td.no { text-align: right; font-weight: 700; color: #2f4a6d; }
+td.no { text-align: right; font-weight: 700; color: #2f4a6d; white-space: nowrap; }
+.adv { display: inline-block; vertical-align: .2mm; margin-right: 1mm; white-space: nowrap; }
+.adv span { display: inline-block; width: 3.8mm; height: 3.8mm; line-height: 3.8mm;
+  border-radius: 50%; background: #111; color: #fff; font-size: 6.8pt; font-weight: 700;
+  text-align: center; margin-left: .3mm; }
 td.pg { color: #888; font-size: 9pt; }
 td.ans { border-left: .3mm dashed #c8ced6; color: #c0392b; height: 13mm; font-size: 9pt; line-height: 1.55; }
 td.ans b { color: #a31515; }
@@ -62,21 +66,25 @@ tr.h2 td { font-weight: 700; color: #2f4a6d; padding: 3mm 2mm 1.5mm;
 """
 
 
+ADV_MARK = '<span class="adv"><span>上</span><span>級</span></span>'
+
+
 def render(name, data):
     rows = []
     for r in data:
         if r[0] in ("h1", "h2"):
             rows.append(f'<tr class="{r[0]}"><td colspan="5">{html.escape(r[1])}</td></tr>')
         else:
-            n, pg, q, a = r
+            n, pg, q, a, adv = r
+            mark = ADV_MARK if adv else ""
             rows.append(
-                f'<tr><td class="chk"><span class="box"></span><span class="box"></span><span class="box"></span></td><td class="no">{n}</td><td class="pg">{pg}</td>'
+                f'<tr><td class="chk"><span class="box"></span><span class="box"></span><span class="box"></span></td><td class="no">{mark}{n}</td><td class="pg">{pg}</td>'
                 f'<td>{html.escape(q)}</td><td class="ans">{a}</td>'
                 '</tr>')
     return f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{CSS}</style></head><body>
 <h1 class="title">企業法　一問一答　{html.escape(name)}</h1>
-<div class="sub">答えは右列。隠して解き、間違えたら□に印。3回連続正解で卒業。</div>
-<table><colgroup><col style="width:19mm"><col style="width:8mm"><col style="width:11mm"><col style="width:38%"><col></colgroup>
+<div class="sub">答えは右列。隠して解き、間違えたら□に印。3回連続正解で卒業。{ADV_MARK}＝上級の範囲。</div>
+<table><colgroup><col style="width:19mm"><col style="width:15mm"><col style="width:11mm"><col style="width:38%"><col></colgroup>
 <thead><tr><th>チェック</th><th>No</th><th>頁</th><th>問題</th><th>答え</th></tr></thead>
 <tbody>{''.join(rows)}</tbody></table></body></html>"""
 
