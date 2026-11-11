@@ -5,12 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
 <title>企業法 一問一答</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+    margin: 0; padding: 24px 16px; background: #f4f6f9; color: #222; }
+  h1 { font-size: 22px; color: #2f4a6d; margin: 0 0 4px; }
+  p.sub { font-size: 13px; color: #777; margin: 0 0 20px; }
+  ul { list-style: none; padding: 0; margin: 0 auto; max-width: 520px; display: grid; gap: 10px; }
+  a { display: flex; justify-content: space-between; align-items: center;
+    background: #fff; border: 1px solid #c8ced6; border-radius: 12px;
+    padding: 16px 18px; text-decoration: none; color: #2f4a6d; font-size: 18px; font-weight: 700; }
+  a:active { background: #e8edf3; }
+  a span { font-size: 13px; color: #888; font-weight: 400; }
+  .wrap { max-width: 520px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>企業法 一問一答</h1>
+  <p class="sub">授業の回を選ぶと PDF が開きます</p>
+</div>
+<ul>
+  <li><a data-pdf href="pdf/企業法_第1回.pdf">第1回<span>25問</span></a></li>
+</ul>
 <script>
   // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
-  location.replace("企業法_一問一答.pdf?v=" + Date.now());
+  document.querySelectorAll("a[data-pdf]").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      location.href = a.getAttribute("href") + "?v=" + Date.now();
+    });
+  });
 </script>
-</head>
-<body style="font-family: sans-serif; padding: 16px;">
-  <p><a href="企業法_一問一答.pdf">企業法_一問一答.pdf を開く</a></p>
 </body>
 </html>

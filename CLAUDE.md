@@ -4,11 +4,12 @@
 
 ## ファイル
 - `questions.csv`: 問題データ。列は type, no, page, question, answer
-  - type: `h1`＝編の見出し、`h2`＝章の見出し、`q`＝問題（見出しの文字は question 列に入れる）
+  - type: `lesson`＝授業の回の区切り（例: `lesson,,,第1回,`）、`h1`＝編の見出し、`h2`＝章の見出し、`q`＝問題（見出しの文字は question 列に入れる）
+  - `lesson` 行から次の `lesson` 行までがその回の問題。回が編・章の途中から始まるときは、直前の見出しが自動でその回の PDF の頭に載る
   - answer には簡単な HTML を使える（`<b>`＝キーワード、`<br>`＝改行）
-- `build.py`: CSV から `企業法_一問一答.pdf` を作る（Chrome のヘッドレス印刷、フォントは Noto Sans CJK JP）
+- `build.py`: CSV から回ごとの PDF `pdf/企業法_第N回.pdf` と、回を選ぶ入口ページ `index.html` を作る（Chrome のヘッドレス印刷、フォントは Noto Sans CJK JP）
 - 実行: `python3 build.py`
-- `index.html`: GitHub Pages（main の直下）の入口。https://hokuto-create.github.io/kigyoho/ を開くと、毎回 `?v=時刻` を付けて最新の PDF に飛ぶ
+- `index.html`: GitHub Pages（main の直下）の入口。`build.py` が生成するので手で編集しない。https://hokuto-create.github.io/kigyoho/ で回を選ぶと、毎回 `?v=時刻` を付けて最新の PDF を開く
 
 ## ルール
 - 問題はユーザーが作る（テキストの頁つき）。Claude は勝手に問題を増やさない
