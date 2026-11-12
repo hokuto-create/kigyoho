@@ -48,6 +48,8 @@ thead th { background: #2f4a6d; color: #fff; font-weight: 500; font-size: 9pt;
   padding: 2mm 1.5mm; }
 td { border-bottom: .3mm solid #c8ced6; padding: 2.2mm 1.5mm; vertical-align: top; }
 tr { break-inside: avoid; }
+/* 見出しと直後の問題を同じ tbody にまとめ、見出しだけがページ末尾に残らないようにする */
+tbody.keep { break-inside: avoid; }
 td.no { text-align: center; font-weight: 700; color: #2f4a6d; white-space: nowrap; }
 td.no .adv { display: block; margin-top: 1mm; }
 .adv { display: inline-block; white-space: nowrap; }
@@ -71,23 +73,30 @@ ADV_MARK = '<span class="adv"><span>上</span><span>級</span></span>'
 
 
 def render(name, data):
-    rows = []
+    # 見出しの連続とその直後の問題1問を1つの tbody（keep）にまとめる
+    bodies, pending = [], []
     for r in data:
         if r[0] in ("h1", "h2"):
-            rows.append(f'<tr class="{r[0]}"><td colspan="5">{html.escape(r[1])}</td></tr>')
+            pending.append(f'<tr class="{r[0]}"><td colspan="5">{html.escape(r[1])}</td></tr>')
         else:
             n, pg, q, a, adv = r
             mark = ADV_MARK if adv else ""
-            rows.append(
-                f'<tr><td class="chk"><span class="box"></span><span class="box"></span><span class="box"></span></td><td class="no">{n}{mark}</td><td class="pg">{pg}</td>'
-                f'<td>{html.escape(q)}</td><td class="ans">{a}</td>'
-                '</tr>')
+            tr = (f'<tr><td class="chk"><span class="box"></span><span class="box"></span><span class="box"></span></td><td class="no">{n}{mark}</td><td class="pg">{pg}</td>'
+                  f'<td>{html.escape(q)}</td><td class="ans">{a}</td>'
+                  '</tr>')
+            if pending:
+                bodies.append('<tbody class="keep">' + "".join(pending) + tr + '</tbody>')
+                pending = []
+            else:
+                bodies.append('<tbody>' + tr + '</tbody>')
+    if pending:
+        bodies.append('<tbody>' + "".join(pending) + '</tbody>')
     return f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{CSS}</style></head><body>
 <h1 class="title">企業法　一問一答　{html.escape(name)}</h1>
 <div class="sub">答えは右列。隠して解き、間違えたら□に印。3回連続正解で卒業。{ADV_MARK}＝上級の範囲。</div>
 <table><colgroup><col style="width:19mm"><col style="width:11mm"><col style="width:11mm"><col style="width:38%"><col></colgroup>
 <thead><tr><th>チェック</th><th>No</th><th>頁</th><th>問題</th><th>答え</th></tr></thead>
-<tbody>{''.join(rows)}</tbody></table></body></html>"""
+{''.join(bodies)}</table></body></html>"""
 
 
 INDEX = """<!DOCTYPE html>
