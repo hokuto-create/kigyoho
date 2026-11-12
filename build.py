@@ -1,4 +1,4 @@
-import csv, html, json, subprocess, pathlib, shutil
+import csv, html, json, re, subprocess, pathlib, shutil
 
 BASE = pathlib.Path(__file__).parent
 PDF_DIR = BASE / "pdf"
@@ -72,7 +72,8 @@ tr.h2 td { font-weight: 700; color: #2f4a6d; padding: 3mm 2mm 1.5mm;
 ADV_MARK = '<span class="adv"><span>上</span><span>級</span></span>'
 
 
-def render(name, data):
+def render(name, data, start=0):
+    """start: この回より前の回のページ数の合計（ページ番号を全体の通し番号にする）"""
     # 見出しの連続とその直後の問題1問を1つの tbody（keep）にまとめる
     bodies, pending = [], []
     for r in data:
@@ -91,7 +92,8 @@ def render(name, data):
                 bodies.append('<tbody>' + tr + '</tbody>')
     if pending:
         bodies.append('<tbody>' + "".join(pending) + '</tbody>')
-    return f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{CSS}</style></head><body>
+    return f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{CSS}
+html {{ counter-reset: page {start}; }}</style></head><body>
 <h1 class="title">企業法　一問一答　{html.escape(name)}</h1>
 <div class="sub">答えは右列。隠して解き、間違えたら□に印。3回連続正解で卒業。{ADV_MARK}＝上級の範囲。</div>
 <table><colgroup><col style="width:19mm"><col style="width:11mm"><col style="width:11mm"><col style="width:38%"><col></colgroup>
@@ -179,12 +181,14 @@ def main():
     tmp = BASE / "kigyoho.html"
     items = []
     counts = {}
+    pages = 0  # ここまでの回のページ数の合計
     for name, data in lessons:
         fname = f"企業法_{name}.pdf"
-        tmp.write_text(render(name, data), encoding="utf-8")
+        tmp.write_text(render(name, data, pages), encoding="utf-8")
         subprocess.run([chrome, "--headless", "--no-sandbox", "--disable-gpu",
                         "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / fname}",
                         tmp.as_uri()], check=True, capture_output=True)
+        pages += len(re.findall(rb"/Type\s*/Page(?![A-Za-z])", (PDF_DIR / fname).read_bytes()))
         nq = sum(1 for r in data if r[0] not in ("h1", "h2"))
         items.append(f'  <li><a data-pdf data-name="{html.escape(name)}" href="pdf/{html.escape(fname)}">{html.escape(name)}<span>{nq}問</span></a></li>')
         counts[name] = nq
