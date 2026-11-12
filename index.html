@@ -25,7 +25,7 @@
   <p class="sub">授業の回を選ぶと PDF が開きます</p>
 </div>
 <ul>
-  <li><a data-pdf href="pdf/企業法_第1回.pdf">第1回<span>8問</span></a></li>
+  <li><a data-pdf data-name="第1回" href="pdf/企業法_第1回.pdf">第1回<span>8問</span></a></li>
 </ul>
 <script>
   // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
@@ -35,6 +35,20 @@
       location.href = a.getAttribute("href") + "?v=" + Date.now();
     });
   });
+  // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json から表示し直す
+  function refreshCounts() {
+    fetch("counts.json?v=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (counts) {
+        document.querySelectorAll("a[data-pdf]").forEach(function (a) {
+          var name = a.getAttribute("data-name");
+          if (name in counts) a.querySelector("span").textContent = counts[name] + "問";
+        });
+      })
+      .catch(function () {});
+  }
+  refreshCounts();
+  window.addEventListener("pageshow", refreshCounts);
 </script>
 </body>
 </html>

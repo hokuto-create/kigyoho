@@ -127,6 +127,20 @@ __ITEMS__
       location.href = a.getAttribute("href") + "?v=" + Date.now();
     });
   });
+  // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json から表示し直す
+  function refreshCounts() {
+    fetch("counts.json?v=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (counts) {
+        document.querySelectorAll("a[data-pdf]").forEach(function (a) {
+          var name = a.getAttribute("data-name");
+          if (name in counts) a.querySelector("span").textContent = counts[name] + "問";
+        });
+      })
+      .catch(function () {});
+  }
+  refreshCounts();
+  window.addEventListener("pageshow", refreshCounts);
 </script>
 </body>
 </html>
@@ -155,6 +169,7 @@ def main():
     PDF_DIR.mkdir()
     tmp = BASE / "kigyoho.html"
     items = []
+    counts = {}
     for name, data in lessons:
         fname = f"企業法_{name}.pdf"
         tmp.write_text(render(name, data), encoding="utf-8")
@@ -162,10 +177,12 @@ def main():
                         "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / fname}",
                         tmp.as_uri()], check=True, capture_output=True)
         nq = sum(1 for r in data if r[0] not in ("h1", "h2"))
-        items.append(f'  <li><a data-pdf href="pdf/{html.escape(fname)}">{html.escape(name)}<span>{nq}問</span></a></li>')
+        items.append(f'  <li><a data-pdf data-name="{html.escape(name)}" href="pdf/{html.escape(fname)}">{html.escape(name)}<span>{nq}問</span></a></li>')
+        counts[name] = nq
         print(f"{name}: {nq}問 → pdf/{fname}")
     tmp.unlink()
     (BASE / "index.html").write_text(INDEX.replace("__ITEMS__", "\n".join(items)), encoding="utf-8")
+    (BASE / "counts.json").write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
     print("ok")
 
 
