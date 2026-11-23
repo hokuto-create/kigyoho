@@ -17,6 +17,9 @@
   a:active { background: #e8edf3; }
   a span { font-size: 13px; color: #888; font-weight: 400; }
   .wrap { max-width: 520px; margin: 0 auto; }
+  ul.toc { margin-bottom: 20px; }
+  ul.toc a { background: #2f4a6d; border-color: #2f4a6d; color: #fff; }
+  ul.toc a span { color: #c9d4e2; }
 </style>
 </head>
 <body>
@@ -24,6 +27,10 @@
   <h1>企業法 一問一答</h1>
   <p class="sub">授業の回を選ぶと PDF が開きます</p>
 </div>
+<ul class="toc">
+  <li><a data-fresh href="toc.html">目次<span>タップで開く</span></a></li>
+  <li><a data-fresh href="pdf/企業法_目次.pdf">目次（PDF）<span>印刷用</span></a></li>
+</ul>
 <ul>
   <li><a data-pdf data-name="第1回" href="pdf/企業法_第1回.pdf">第1回<span>8問</span></a></li>
   <li><a data-pdf data-name="第2回" href="pdf/企業法_第2回.pdf">第2回<span>10問</span></a></li>
@@ -31,7 +38,7 @@
 </ul>
 <script>
   // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
-  document.querySelectorAll("a[data-pdf]").forEach(function (a) {
+  document.querySelectorAll("a[data-pdf], a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
       location.href = a.getAttribute("href") + "?v=" + Date.now();
