@@ -120,6 +120,9 @@ INDEX = """<!DOCTYPE html>
   a:active { background: #e8edf3; }
   a span { font-size: 13px; color: #888; font-weight: 400; }
   .wrap { max-width: 520px; margin: 0 auto; }
+  ul.toc { margin-bottom: 20px; }
+  ul.toc a { background: #2f4a6d; border-color: #2f4a6d; color: #fff; }
+  ul.toc a span { color: #c9d4e2; }
 </style>
 </head>
 <body>
@@ -127,12 +130,12 @@ INDEX = """<!DOCTYPE html>
   <h1>企業法 一問一答</h1>
   <p class="sub">授業の回を選ぶと PDF が開きます</p>
 </div>
-<ul>
+__TOC__<ul>
 __ITEMS__
 </ul>
 <script>
   // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
-  document.querySelectorAll("a[data-pdf]").forEach(function (a) {
+  document.querySelectorAll("a[data-pdf], a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
       location.href = a.getAttribute("href") + "?v=" + Date.now();
@@ -156,6 +159,185 @@ __ITEMS__
 </body>
 </html>
 """
+
+
+# ---------- 目次（toc.csv） ----------
+# type: h1＝編、h2＝章、h3＝節、h4＝項、h5＝さらに下の見出し、m＝覚えるべき事項（直前の見出しの下に入る）
+TOC_LEVELS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5}
+
+
+def load_toc():
+    """toc.csv を木にする。ノードは {"title", "page", "memo": [...], "children": [...]}"""
+    root = {"title": "", "page": "", "memo": [], "children": [], "level": 0}
+    stack = [root]
+    path = BASE / "toc.csv"
+    if not path.exists():
+        return root
+    with open(path, encoding="utf-8") as f:
+        for i, r in enumerate(csv.DictReader(f), start=2):
+            t = (r["type"] or "").strip()
+            if t == "m":
+                if len(stack) == 1:
+                    raise SystemExit(f"エラー: toc.csv {i}行目の m の前に見出しがありません")
+                stack[-1]["memo"].append(r["title"])
+                continue
+            if t not in TOC_LEVELS:
+                raise SystemExit(f"エラー: toc.csv {i}行目の type「{t}」は h1〜h5 か m にしてください")
+            lv = TOC_LEVELS[t]
+            while stack[-1]["level"] >= lv:
+                stack.pop()
+            node = {"title": r["title"], "page": (r["page"] or "").strip(), "memo": [], "children": [], "level": lv}
+            stack[-1]["children"].append(node)
+            stack.append(node)
+    return root
+
+
+def toc_page(node):
+    return f'<span class="pg">p.{html.escape(node["page"])}</span>' if node["page"] else ""
+
+
+def toc_html_nodes(nodes, path=""):
+    out = []
+    for k, n in enumerate(nodes):
+        key = f"{path}{k}."
+        memo = "".join(f"<li>{m}</li>" for m in n["memo"])
+        inner = (f'<ul class="memo">{memo}</ul>' if memo else "") + toc_html_nodes(n["children"], key)
+        title = f'<span class="t">{html.escape(n["title"])}</span>{toc_page(n)}'
+        if inner:
+            out.append(f'<details class="lv{n["level"]}" data-key="{key}"><summary>{title}</summary>'
+                       f'<div class="in">{inner}</div></details>')
+        else:
+            out.append(f'<div class="leaf lv{n["level"]}">{title}</div>')
+    return "".join(out)
+
+
+TOC_HTML = """<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>企業法 目次</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+    margin: 0; padding: 24px 16px 48px; background: #f4f6f9; color: #222; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 22px; color: #2f4a6d; margin: 0 0 4px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+  .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
+    border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
+  summary, .leaf { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; cursor: pointer;
+    list-style: none; color: #2f4a6d; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: #8a97a8; font-size: 12px; width: 12px; flex: none;
+    transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  .leaf { cursor: default; }
+  .leaf::before { content: ""; width: 12px; flex: none; }
+  .t { flex: 1; }
+  .pg { color: #888; font-size: 12px; font-weight: 400; white-space: nowrap; }
+  details.lv1 { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+  .lv1 > summary, .leaf.lv1 { font-size: 17px; font-weight: 700; }
+  .leaf.lv1 { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; margin-bottom: 10px; }
+  .lv1 > .in { border-top: 1px solid #e3e7ec; padding: 4px 0 6px; }
+  .lv2 > summary, .leaf.lv2 { font-weight: 700; font-size: 16px; }
+  .in .in { margin-left: 16px; border-left: 2px solid #e3e7ec; }
+  .lv3 > summary, .leaf.lv3, .lv4 > summary, .leaf.lv4, .lv5 > summary, .leaf.lv5 { font-size: 15px; }
+  ul.memo { margin: 2px 12px 8px 32px; padding: 8px 12px 8px 28px; background: #fdf3f2;
+    border-radius: 8px; color: #c0392b; font-size: 14px; line-height: 1.6; }
+  ul.memo b { color: #a31515; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>企業法 目次</h1>
+  <div class="bar">
+    <a href="./">← 戻る</a>
+    <button id="openAll">すべて開く</button>
+    <button id="closeAll">すべて閉じる</button>
+    <a data-fresh href="pdf/企業法_目次.pdf">PDF</a>
+  </div>
+__TREE__
+</div>
+<script>
+  var KEY = "kigyoho-toc-open";
+  function save() {
+    var keys = [];
+    document.querySelectorAll("details[open]").forEach(function (d) { keys.push(d.dataset.key); });
+    try { localStorage.setItem(KEY, JSON.stringify(keys)); } catch (e) {}
+  }
+  try {
+    (JSON.parse(localStorage.getItem(KEY)) || []).forEach(function (k) {
+      var d = document.querySelector('details[data-key="' + k + '"]');
+      if (d) d.open = true;
+    });
+  } catch (e) {}
+  document.querySelectorAll("details").forEach(function (d) { d.addEventListener("toggle", save); });
+  document.getElementById("openAll").onclick = function () {
+    document.querySelectorAll("details").forEach(function (d) { d.open = true; });
+  };
+  document.getElementById("closeAll").onclick = function () {
+    document.querySelectorAll("details").forEach(function (d) { d.open = false; });
+  };
+  document.querySelectorAll("a[data-fresh]").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      location.href = a.getAttribute("href") + "?v=" + Date.now();
+    });
+  });
+</script>
+</body>
+</html>
+"""
+
+
+TOC_CSS = """
+@page { size: A4; margin: 14mm 14mm 14mm 14mm;
+  @bottom-center { content: counter(page); } }
+body { font-family: 'Noto Sans CJK JP'; font-size: 10.5pt; color: #222; }
+h1.title { font-size: 17pt; margin: 0 0 5mm; letter-spacing: .05em; }
+.row { display: flex; align-items: baseline; gap: 3mm; padding: 1.2mm 0; break-inside: avoid; }
+.row .t { flex: 1; }
+.row .pg { color: #888; font-size: 9pt; white-space: nowrap; }
+.lv1 { background: #e8edf3; font-weight: 700; font-size: 12.5pt; color: #2f4a6d;
+  padding: 2mm 2mm; margin-top: 4mm; break-after: avoid; }
+.lv2 { font-weight: 700; color: #2f4a6d; border-bottom: .4mm solid #2f4a6d;
+  margin: 2.5mm 0 1mm 4mm; break-after: avoid; }
+.lv3 { margin-left: 9mm; font-weight: 700; }
+.lv4 { margin-left: 14mm; }
+.lv5 { margin-left: 19mm; font-size: 10pt; }
+ul.memo { margin: .5mm 0 1.5mm; padding-left: 5mm; color: #c0392b; font-size: 9pt; line-height: 1.55; }
+ul.memo b { color: #a31515; }
+"""
+
+TOC_INDENT = {1: 2, 2: 6, 3: 11, 4: 16, 5: 21}
+
+
+def toc_pdf_rows(nodes):
+    out = []
+    for n in nodes:
+        out.append(f'<div class="row lv{n["level"]}"><span class="t">{html.escape(n["title"])}</span>{toc_page(n)}</div>')
+        if n["memo"]:
+            out.append(f'<ul class="memo" style="margin-left:{TOC_INDENT[n["level"]] + 3}mm">'
+                       + "".join(f"<li>{m}</li>" for m in n["memo"]) + "</ul>")
+        out.append(toc_pdf_rows(n["children"]))
+    return "".join(out)
+
+
+def build_toc(chrome):
+    root = load_toc()
+    if not root["children"]:
+        return False
+    (BASE / "toc.html").write_text(TOC_HTML.replace("__TREE__", toc_html_nodes(root["children"])), encoding="utf-8")
+    tmp = BASE / "kigyoho_toc.html"
+    tmp.write_text(f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{TOC_CSS}</style></head>
+<body><h1 class="title">企業法　目次</h1>{toc_pdf_rows(root["children"])}</body></html>""", encoding="utf-8")
+    subprocess.run([chrome, "--headless", "--no-sandbox", "--disable-gpu",
+                    "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / '企業法_目次.pdf'}",
+                    tmp.as_uri()], check=True, capture_output=True)
+    tmp.unlink()
+    print("目次 → toc.html, pdf/企業法_目次.pdf")
+    return True
 
 
 def check_font():
@@ -194,7 +376,15 @@ def main():
         counts[name] = nq
         print(f"{name}: {nq}問 → pdf/{fname}")
     tmp.unlink()
-    (BASE / "index.html").write_text(INDEX.replace("__ITEMS__", "\n".join(items)), encoding="utf-8")
+    toc = ""
+    if build_toc(chrome):
+        toc = ('<ul class="toc">\n'
+               '  <li><a data-fresh href="toc.html">目次<span>タップで開く</span></a></li>\n'
+               '  <li><a data-fresh href="pdf/企業法_目次.pdf">目次（PDF）<span>印刷用</span></a></li>\n'
+               '</ul>\n')
+    elif (BASE / "toc.html").exists():
+        (BASE / "toc.html").unlink()
+    (BASE / "index.html").write_text(INDEX.replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items)), encoding="utf-8")
     (BASE / "counts.json").write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
     print("ok")
 

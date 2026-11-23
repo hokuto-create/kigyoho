@@ -9,6 +9,10 @@
   - type: `lesson`＝授業の回の区切り（例: `lesson,,,第1回,`）、`h1`＝編の見出し、`h2`＝章の見出し、`q`＝問題（見出しの文字は question 列に入れる）
   - `lesson` 行から次の `lesson` 行までがその回の問題。回が編・章の途中から始まるときは、直前の見出しが自動でその回の PDF の頭に載る
   - answer には簡単な HTML を使える（`<b>`＝キーワード、`<br>`＝改行）
+- `toc.csv`: テキストの目次。列は type, title, page（改行は CRLF）
+  - type: `h1`＝編、`h2`＝章、`h3`＝節、`h4`＝項、`h5`＝さらに下の見出し、`m`＝覚えるべき事項（直前の見出しの下に入る。1行1事項、`<b>` などの HTML 可）
+  - 見出しの文言・頁はテキストの目次どおりに書く。`m` の中身はユーザーが決める（Claude が勝手に足さない）
+  - `build.py` が、タップで開閉する `toc.html` と、全部開いた状態の `pdf/企業法_目次.pdf` を作り、入口ページの回の上にボタンを置く
 - `build.py`: CSV から回ごとの PDF `pdf/企業法_第N回.pdf` と、回を選ぶ入口ページ `index.html` を作る（Chrome のヘッドレス印刷、フォントは Noto Sans CJK JP）
 - 実行: `python3 build.py`
 - `index.html`: GitHub Pages（main の直下）の入口。`build.py` が生成するので手で編集しない。https://hokuto-create.github.io/kigyoho/ で回を選ぶと、毎回 `?v=時刻` を付けて最新の PDF を開く
