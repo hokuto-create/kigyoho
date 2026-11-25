@@ -186,7 +186,8 @@ def load_toc():
             lv = TOC_LEVELS[t]
             while stack[-1]["level"] >= lv:
                 stack.pop()
-            node = {"title": r["title"], "page": (r["page"] or "").strip(), "memo": [], "children": [], "level": lv}
+            node = {"title": r["title"], "page": (r["page"] or "").strip(), "memo": [], "children": [], "level": lv,
+                    "id": stack[-1].get("id", "") + "／" + r["title"]}
             stack[-1]["children"].append(node)
             stack.append(node)
     return root
@@ -203,6 +204,10 @@ def toc_html_nodes(nodes, path=""):
         memo = "".join(f"<li>{m}</li>" for m in n["memo"])
         inner = (f'<ul class="memo">{memo}</ul>' if memo else "") + toc_html_nodes(n["children"], key)
         title = f'<span class="t">{html.escape(n["title"])}</span>{toc_page(n)}'
+        if n["memo"]:
+            # 覚える事項がある見出し＝1問。チェック□□□（タップで 空→×→○→空）
+            title = (f'<span class="ck" data-id="{html.escape(n["id"])}">'
+                     + '<i></i>' * 3 + '</span>' + title)
         if inner:
             out.append(f'<details class="lv{n["level"]}" data-key="{key}"><summary>{title}</summary>'
                        f'<div class="in">{inner}</div></details>')
@@ -246,6 +251,19 @@ TOC_HTML = """<!DOCTYPE html>
   ul.memo { margin: 2px 12px 8px 32px; padding: 8px 12px 8px 28px; background: #fdf3f2;
     border-radius: 8px; color: #c0392b; font-size: 14px; line-height: 1.6; }
   ul.memo b { color: #a31515; }
+  .filter { align-items: center; margin-top: -6px; }
+  .filter .lb { font-size: 13px; color: #666; }
+  .filter button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
+  #cnt { font-size: 13px; color: #666; }
+  #none { color: #888; text-align: center; }
+  .hide { display: none !important; }
+  .ck { display: flex; gap: 4px; flex: none; align-self: center; }
+  .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
+    font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
+  .ck i.x { color: #c0392b; border-color: #c0392b; }
+  .ck i.o { color: #1e7d4f; border-color: #1e7d4f; }
+  .ck i.x::after { content: "×"; }
+  .ck i.o::after { content: "○"; }
 </style>
 </head>
 <body>
@@ -257,7 +275,18 @@ TOC_HTML = """<!DOCTYPE html>
     <button id="closeAll">すべて閉じる</button>
     <a data-fresh href="pdf/企業法_web確認問題.pdf">PDF</a>
   </div>
+  <div class="bar filter">
+    <span class="lb">絞り込み</span>
+    <button data-n="0">すべて</button>
+    <button data-n="1">×1つ以上</button>
+    <button data-n="2">×2つ以上</button>
+    <button data-n="3">×3つ</button>
+    <span id="cnt"></span>
+  </div>
+  <div id="tree">
 __TREE__
+  </div>
+  <p id="none" hidden>該当する問題はありません</p>
 </div>
 <script>
   var KEY = "kigyoho-toc-open";
@@ -279,6 +308,60 @@ __TREE__
   document.getElementById("closeAll").onclick = function () {
     document.querySelectorAll("details").forEach(function (d) { d.open = false; });
   };
+  // チェック□□□：タップで 空→×→○→空。この端末のブラウザに保存する
+  var MKEY = "kigyoho-toc-marks", NEXT = { "": "x", x: "o", o: "" }, marks = {};
+  try { marks = JSON.parse(localStorage.getItem(MKEY)) || {}; } catch (e) {}
+  document.querySelectorAll(".ck").forEach(function (ck) {
+    var id = ck.dataset.id, boxes = ck.querySelectorAll("i");
+    var m = marks[id] || [];
+    boxes.forEach(function (b, i) {
+      if (m[i]) b.className = m[i];
+      b.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();   // 見出しは開閉させない
+        b.className = NEXT[b.className || ""];
+        var v = []; boxes.forEach(function (x) { v.push(x.className); });
+        if (v.join("")) marks[id] = v; else delete marks[id];
+        try { localStorage.setItem(MKEY, JSON.stringify(marks)); } catch (e) {}
+      });
+    });
+  });
+  // 絞り込み：×の数が n 以上の問題だけ表示（その問題を含む見出しは開く。問題そのものは開かない）
+  var FKEY = "kigyoho-toc-filter";
+  function nx(d) {
+    var ck = d.querySelector(":scope > summary > .ck");
+    return ck ? ck.querySelectorAll("i.x").length : -1;   // -1＝問題ではない見出し
+  }
+  function walk(el, n) {          // el の中に表示する問題があれば true
+    var any = false;
+    el.querySelectorAll(":scope > details, :scope > .leaf, :scope > .in > details, :scope > .in > .leaf").forEach(function (c) {
+      var hit = c.tagName === "DETAILS" && nx(c) >= Math.max(n, 1);
+      var sub = c.tagName === "DETAILS" ? walk(c, n) : false;
+      var show = n === 0 || hit || sub;
+      c.classList.toggle("hide", !show);
+      // 絞り込み中、対象外の問題の答え（覚える事項）は隠す
+      var memo = c.querySelector(":scope > .in > ul.memo");
+      if (memo) memo.classList.toggle("hide", n > 0 && !hit);
+      if (n > 0 && sub) c.open = true;
+      if (n > 0 && hit) cnt++;
+      any = any || hit || sub;
+    });
+    return any;
+  }
+  var cnt = 0;
+  function applyFilter(n) {
+    cnt = 0;
+    var any = walk(document.getElementById("tree"), n);
+    document.querySelectorAll(".filter button").forEach(function (b) { b.classList.toggle("on", +b.dataset.n === n); });
+    document.getElementById("cnt").textContent = n > 0 ? cnt + "問" : "";
+    document.getElementById("none").hidden = n === 0 || any;
+    try { localStorage.setItem(FKEY, String(n)); } catch (e) {}
+  }
+  document.querySelectorAll(".filter button").forEach(function (b) {
+    b.onclick = function () { applyFilter(+b.dataset.n); };
+  });
+  var f0 = 0;
+  try { f0 = +(localStorage.getItem(FKEY) || 0); } catch (e) {}
+  applyFilter(f0);
   document.querySelectorAll("a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
@@ -308,6 +391,8 @@ h1.title { font-size: 17pt; margin: 0 0 5mm; letter-spacing: .05em; }
 .lv5 { margin-left: 19mm; font-size: 10pt; }
 ul.memo { margin: .5mm 0 1.5mm; padding-left: 5mm; color: #c0392b; font-size: 9pt; line-height: 1.55; }
 ul.memo b { color: #a31515; }
+.row .ck { display: flex; gap: 1mm; flex: none; align-self: center; }
+.row .ck i { width: 4mm; height: 4mm; border: .3mm solid #666; }
 """
 
 TOC_INDENT = {1: 2, 2: 6, 3: 11, 4: 16, 5: 21}
@@ -316,7 +401,8 @@ TOC_INDENT = {1: 2, 2: 6, 3: 11, 4: 16, 5: 21}
 def toc_pdf_rows(nodes):
     out = []
     for n in nodes:
-        out.append(f'<div class="row lv{n["level"]}"><span class="t">{html.escape(n["title"])}</span>{toc_page(n)}</div>')
+        ck = '<span class="ck"><i></i><i></i><i></i></span>' if n["memo"] else ""
+        out.append(f'<div class="row lv{n["level"]}">{ck}<span class="t">{html.escape(n["title"])}</span>{toc_page(n)}</div>')
         if n["memo"]:
             out.append(f'<ul class="memo" style="margin-left:{TOC_INDENT[n["level"]] + 3}mm">'
                        + "".join(f"<li>{m}</li>" for m in n["memo"]) + "</ul>")
