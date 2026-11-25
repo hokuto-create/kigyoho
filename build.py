@@ -161,7 +161,7 @@ __ITEMS__
 """
 
 
-# ---------- 目次（toc.csv） ----------
+# ---------- 見出し復習（toc.csv） ----------
 # type: h1＝編、h2＝章、h3＝節、h4＝項、h5＝さらに下の見出し、m＝覚えるべき事項（直前の見出しの下に入る）
 TOC_LEVELS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5}
 
@@ -217,7 +217,7 @@ TOC_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
-<title>企業法 目次</title>
+<title>企業法 見出し復習</title>
 <style>
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
     margin: 0; padding: 24px 16px 48px; background: #f4f6f9; color: #222; }
@@ -250,12 +250,12 @@ TOC_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-  <h1>企業法 目次</h1>
+  <h1>企業法 見出し復習</h1>
   <div class="bar">
     <a href="./">← 戻る</a>
     <button id="openAll">すべて開く</button>
     <button id="closeAll">すべて閉じる</button>
-    <a data-fresh href="pdf/企業法_目次.pdf">PDF</a>
+    <a data-fresh href="pdf/企業法_見出し復習.pdf">PDF</a>
   </div>
 __TREE__
 </div>
@@ -331,12 +331,12 @@ def build_toc(chrome):
     (BASE / "toc.html").write_text(TOC_HTML.replace("__TREE__", toc_html_nodes(root["children"])), encoding="utf-8")
     tmp = BASE / "kigyoho_toc.html"
     tmp.write_text(f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{TOC_CSS}</style></head>
-<body><h1 class="title">企業法　目次</h1>{toc_pdf_rows(root["children"])}</body></html>""", encoding="utf-8")
+<body><h1 class="title">企業法　見出し復習</h1>{toc_pdf_rows(root["children"])}</body></html>""", encoding="utf-8")
     subprocess.run([chrome, "--headless", "--no-sandbox", "--disable-gpu",
-                    "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / '企業法_目次.pdf'}",
+                    "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / '企業法_見出し復習.pdf'}",
                     tmp.as_uri()], check=True, capture_output=True)
     tmp.unlink()
-    print("目次 → toc.html, pdf/企業法_目次.pdf")
+    print("見出し復習 → toc.html, pdf/企業法_見出し復習.pdf")
     return True
 
 
@@ -379,8 +379,8 @@ def main():
     toc = ""
     if build_toc(chrome):
         toc = ('<ul class="toc">\n'
-               '  <li><a data-fresh href="toc.html">目次<span>タップで開く</span></a></li>\n'
-               '  <li><a data-fresh href="pdf/企業法_目次.pdf">目次（PDF）<span>印刷用</span></a></li>\n'
+               '  <li><a data-fresh href="toc.html">見出し復習<span>タップで開く</span></a></li>\n'
+               '  <li><a data-fresh href="pdf/企業法_見出し復習.pdf">見出し復習（PDF）<span>印刷用</span></a></li>\n'
                '</ul>\n')
     elif (BASE / "toc.html").exists():
         (BASE / "toc.html").unlink()
