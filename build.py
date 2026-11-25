@@ -161,62 +161,59 @@ __ITEMS__
 """
 
 
-# ---------- web確認問題（toc.csv） ----------
-# type: h1＝編、h2＝章、h3＝節、h4＝項、h5＝さらに下の見出し、m＝覚えるべき事項（直前の見出しの下に入る）
-TOC_LEVELS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5}
+# ---------- web確認問題（一問一答を1問ずつ、web で） ----------
+def load_web():
+    """questions.csv を 編→章→問題 の木にする（回をまたいで同じ編・章はまとめる）。
+    問題は {"lesson","no","page","q","a","adv"}。頁が空欄の問題は直前の問題の頁を使う。"""
+    root = []
+    lessons = []
+    h1 = h2 = None
+    page = ""
+    lesson = ""
+    with open(BASE / "questions.csv", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            t = r["type"]
+            if t == "lesson":
+                lesson = r["question"]; lessons.append(lesson)
+            elif t == "h1":
+                h1 = next((n for n in root if n["title"] == r["question"]), None)
+                if not h1:
+                    h1 = {"title": r["question"], "children": [], "qs": []}; root.append(h1)
+                h2 = None
+            elif t == "h2":
+                h2 = next((n for n in h1["children"] if n["title"] == r["question"]), None)
+                if not h2:
+                    h2 = {"title": r["question"], "children": [], "qs": []}; h1["children"].append(h2)
+            elif t == "q":
+                page = (r["page"] or "").strip() or page
+                (h2 or h1)["qs"].append({"lesson": lesson, "no": r["no"], "page": page, "q": r["question"],
+                                         "a": r["answer"], "adv": (r.get("level") or "").strip() == "上"})
+    return root, lessons
 
 
-def load_toc():
-    """toc.csv を木にする。ノードは {"title", "page", "memo": [...], "children": [...]}"""
-    root = {"title": "", "page": "", "memo": [], "children": [], "level": 0}
-    stack = [root]
-    path = BASE / "toc.csv"
-    if not path.exists():
-        return root
-    with open(path, encoding="utf-8") as f:
-        for i, r in enumerate(csv.DictReader(f), start=2):
-            t = (r["type"] or "").strip()
-            if t == "m":
-                if len(stack) == 1:
-                    raise SystemExit(f"エラー: toc.csv {i}行目の m の前に見出しがありません")
-                stack[-1]["memo"].append(r["title"])
-                continue
-            if t not in TOC_LEVELS:
-                raise SystemExit(f"エラー: toc.csv {i}行目の type「{t}」は h1〜h5 か m にしてください")
-            lv = TOC_LEVELS[t]
-            while stack[-1]["level"] >= lv:
-                stack.pop()
-            node = {"title": r["title"], "page": (r["page"] or "").strip(), "memo": [], "children": [], "level": lv,
-                    "id": stack[-1].get("id", "") + "／" + r["title"]}
-            stack[-1]["children"].append(node)
-            stack.append(node)
-    return root
+def web_count(n):
+    return len(n["qs"]) + sum(web_count(c) for c in n["children"])
 
 
-def toc_page(node):
-    return f'<span class="pg">p.{html.escape(node["page"])}</span>' if node["page"] else ""
-
-
-def toc_html_nodes(nodes, path=""):
+def web_nodes(nodes, lv=1):
     out = []
-    for k, n in enumerate(nodes):
-        key = f"{path}{k}."
-        memo = "".join(f"<li>{m}</li>" for m in n["memo"])
-        inner = (f'<ul class="memo">{memo}</ul>' if memo else "") + toc_html_nodes(n["children"], key)
-        title = f'<span class="t">{html.escape(n["title"])}</span>{toc_page(n)}'
-        if n["memo"]:
-            # 覚える事項がある見出し＝1問。チェック□□□（タップで 空→×→○→空）
-            title = (f'<span class="ck" data-id="{html.escape(n["id"])}">'
-                     + '<i></i>' * 3 + '</span>' + title)
-        if inner:
-            out.append(f'<details class="lv{n["level"]}" data-key="{key}"><summary>{title}</summary>'
-                       f'<div class="in">{inner}</div></details>')
-        else:
-            out.append(f'<div class="leaf lv{n["level"]}">{title}</div>')
+    for n in nodes:
+        qs = []
+        for q in n["qs"]:
+            adv = '<span class="adv">上級</span>' if q["adv"] else ""
+            pg = f'<span class="pg">{html.escape(q["page"])}</span>' if q["page"] else ""
+            qs.append(f'<details class="q" data-l="{html.escape(q["lesson"])}"><summary><div class="qm">'
+                      f'<span class="ck" data-id="q:{html.escape(q["q"])}"><i></i><i></i><i></i></span>'
+                      f'<span class="no">No.{html.escape(q["no"])}</span>{pg}{adv}<span class="lad"></span></div>'
+                      f'<div class="qt">{html.escape(q["q"])}</div></summary><div class="ans">{q["a"]}</div></details>')
+        inner = "".join(qs) + web_nodes(n["children"], lv + 1)
+        out.append(f'<details class="h lv{lv}" data-key="h:{html.escape(n["title"])}"><summary class="hd">'
+                   f'<span class="t">{html.escape(n["title"])}</span><span class="hcnt">{web_count(n)}問</span></summary>'
+                   f'<div class="in">{inner}</div></details>')
     return "".join(out)
 
 
-TOC_HTML = """<!DOCTYPE html>
+WEB_HTML = """<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -249,8 +246,8 @@ TOC_HTML = """<!DOCTYPE html>
   [data-qf=a] #tree { font-family: "Shippori Mincho", serif; font-weight: 500; }
   [data-qf=c] #tree { font-family: "Klee One", serif; }
   [data-qf=d] #tree { font-family: "Zen Old Mincho", serif; }
-  #tree summary .t, #tree .leaf .t, #tree b { font-weight: 700; }
-  [data-qf=c] #tree summary .t, [data-qf=c] #tree .leaf .t, [data-qf=c] #tree b { font-weight: 600; }
+  #tree .hd .t, #tree .qt, #tree b { font-weight: 700; }
+  [data-qf=c] #tree .hd .t, [data-qf=c] #tree .qt, [data-qf=c] #tree b { font-weight: 600; }
   .wrap { position: relative; }
   #setBtn { position: absolute; top: 0; right: 0; width: 44px; height: 44px; border-radius: 50%;
     border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; cursor: pointer;
@@ -276,26 +273,36 @@ TOC_HTML = """<!DOCTYPE html>
   .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
   .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
     border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
-  summary, .leaf { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; cursor: pointer;
-    list-style: none; color: #2f4a6d; }
+  summary { list-style: none; cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
-  summary::before { content: "▸"; color: #8a97a8; font-size: 12px; width: 12px; flex: none;
-    transition: transform .15s; }
-  details[open] > summary::before { transform: rotate(90deg); }
-  .leaf { cursor: default; }
-  .leaf::before { content: ""; width: 12px; flex: none; }
+  .hd { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; color: #2f4a6d; }
+  .hd::before { content: "▸"; font-family: -apple-system, "Hiragino Sans", sans-serif; color: #8a97a8; font-size: 12px; width: 12px; flex: none; transition: transform .15s; }
+  details[open] > .hd::before { transform: rotate(90deg); }
   .t { flex: 1; }
-  .pg { color: #888; font-size: 12px; font-weight: 400; white-space: nowrap; }
+  .hcnt { color: #888; font-size: 12px; font-weight: 400; font-family: -apple-system, "Hiragino Sans", sans-serif; }
   details.lv1 { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
-  .lv1 > summary, .leaf.lv1 { font-size: 17px; font-weight: 700; }
-  .leaf.lv1 { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; margin-bottom: 10px; }
-  .lv1 > .in { border-top: 1px solid #e3e7ec; padding: 4px 0 6px; }
-  .lv2 > summary, .leaf.lv2 { font-weight: 700; font-size: 16px; }
+  .lv1 > .hd { font-size: 17px; }
+  .lv1 > .in { border-top: 1px solid #e3e7ec; padding: 4px 0 8px; }
+  .lv2 > .hd { font-size: 16px; }
   .in .in { margin-left: 16px; border-left: 2px solid #e3e7ec; }
-  .lv3 > summary, .leaf.lv3, .lv4 > summary, .leaf.lv4, .lv5 > summary, .leaf.lv5 { font-size: 15px; }
-  ul.memo { margin: 2px 12px 8px 32px; padding: 8px 12px 8px 28px; background: #fdf3f2;
-    border-radius: 8px; color: #c0392b; font-size: 14px; line-height: 1.6; }
-  ul.memo b { color: #a31515; }
+  /* 1問 */
+  details.q { margin: 6px 12px 6px 14px; border: 1px solid #e3e7ec; border-radius: 10px; background: #fbfcfd; }
+  details.q[open] { background: #fff; border-color: #c8ced6; }
+  details.q > summary { padding: 8px 10px; }
+  .qm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  .no { font-weight: 700; color: #2f4a6d; font-size: 13px; }
+  .pg { color: #888; font-size: 12px; }
+  .adv { font-size: 11px; color: #fff; background: #111; border-radius: 9px; padding: 1px 7px; }
+  .lad { margin-left: auto; font-size: 12px; font-weight: 700; border-radius: 9px; padding: 2px 8px; white-space: nowrap; }
+  .lad:empty { display: none; }
+  .lad.s1 { color: #c0392b; background: #fdecea; }
+  .lad.s2 { color: #a66a00; background: #fff4d6; }
+  .lad.s3 { color: #2563a8; background: #e6f0fb; }
+  .lad.s4 { color: #1e7d4f; background: #e3f4ea; }
+  .lad.due { color: #fff; background: #c0392b; }
+  .qt { margin-top: 6px; color: #2f4a6d; font-size: 15px; line-height: 1.6; }
+  .ans { padding: 2px 12px 12px; color: #c0392b; font-size: 14px; line-height: 1.7; border-top: 1px dashed #e3e7ec; margin: 0 10px; padding-top: 8px; }
+  .ans b { color: #a31515; }
   .filter { align-items: center; margin-top: -6px; }
   .filter .lb { font-size: 13px; color: #666; }
   .filter button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
@@ -309,7 +316,8 @@ TOC_HTML = """<!DOCTYPE html>
   .syncbox .st.wait { color: #8a97a8; }
   .syncbox .sub { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.6; }
   #syncNow { margin-top: 8px; }
-  .ck { display: flex; gap: 4px; flex: none; align-self: center; }
+  .ck { display: flex; gap: 4px; flex: none; }
+  .filter.les { margin-top: -8px; }
   .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
     font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
   .ck i.x { color: #c0392b; border-color: #c0392b; }
@@ -326,15 +334,20 @@ TOC_HTML = """<!DOCTYPE html>
     <a href="./">← 戻る</a>
     <button id="openAll">すべて開く</button>
     <button id="closeAll">すべて閉じる</button>
-    <a data-fresh href="pdf/企業法_web確認問題.pdf">PDF</a>
   </div>
   <div class="bar filter">
     <span class="lb">絞り込み</span>
-    <button data-n="0">すべて</button>
-    <button data-n="1">×1つ以上</button>
-    <button data-n="2">×2つ以上</button>
-    <button data-n="3">×3つ</button>
+    <button data-m="all">すべて</button>
+    <button data-m="today">今日の復習</button>
+    <button data-m="x1">×1つ以上</button>
+    <button data-m="x2">×2つ以上</button>
+    <button data-m="x3">×3つ</button>
     <span id="cnt"></span>
+  </div>
+  <div class="bar filter les">
+    <span class="lb">回</span>
+    <button data-l="">全回</button>
+__LESSONS__
   </div>
   <p id="syncStatus" hidden></p>
   <div id="tree">
@@ -373,10 +386,10 @@ __TREE__
     });
     mark();
   });
-  var KEY = "kigyoho-toc-open";
+  var KEY = "kigyoho-web-open";
   function save() {
     var keys = [];
-    document.querySelectorAll("#tree details[open]").forEach(function (d) { keys.push(d.dataset.key); });
+    document.querySelectorAll("#tree details.h[open]").forEach(function (d) { keys.push(d.dataset.key); });
     try { localStorage.setItem(KEY, JSON.stringify(keys)); } catch (e) {}
   }
   try {
@@ -385,15 +398,16 @@ __TREE__
       if (d) d.open = true;
     });
   } catch (e) {}
-  document.querySelectorAll("#tree details").forEach(function (d) { d.addEventListener("toggle", save); });
+  document.querySelectorAll("#tree details.h").forEach(function (d) { d.addEventListener("toggle", save); });
   document.getElementById("openAll").onclick = function () {
-    document.querySelectorAll("#tree details").forEach(function (d) { d.open = true; });
+    document.querySelectorAll("#tree details.h").forEach(function (d) { d.open = true; });
   };
   document.getElementById("closeAll").onclick = function () {
-    document.querySelectorAll("#tree details").forEach(function (d) { d.open = false; });
+    document.querySelectorAll("#tree details.h").forEach(function (d) { d.open = false; });
   };
   // ---- チェック□□□の記録と同期 ----
-  // marks = { 問題ID: { v: ["x","o",""], t: 変更した時刻(ms) } }
+  // marks = { 問題ID: { v: ["x","o",""], d: ["2026-11-25","2026-11-26",""], t: 変更した時刻(ms) } }
+  //   v＝□の印（左から順に、その回の結果）、d＝その印を付けた日
   // ・消さない：□を全部空に戻しても {v:["","",""], t} として残す。見出しが無くなった問題の記録も残す
   // ・合わせ方：問題ごとに t の新しい方を採る（空の端末・古い端末と同期しても、新しい記録は消えない）
   // ・クラウド（DayFlow と同じ Supabase の表）に、本体と日付ごとのバックアップを置く。操作は不要（自動で同期）
@@ -403,8 +417,29 @@ __TREE__
   var SUPA_URL = "https://bspylkvejufqinglwfga.supabase.co";
   var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzcHlsa3ZlanVmcWluZ2x3ZmdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MDc5MTAsImV4cCI6MjA5NTA4MzkxMH0.L9yyNoOQQ_hsBPAyut32d3rdgvW1W2mGffHRK2ZaH8w";
   function norm(x) {
-    if (Array.isArray(x)) return { v: x, t: 0 };       // 以前の形式
-    return x && Array.isArray(x.v) ? x : null;
+    if (Array.isArray(x)) x = { v: x, t: 0 };          // 以前の形式
+    if (!x || !Array.isArray(x.v)) return null;
+    if (!Array.isArray(x.d)) x.d = x.v.map(function (c) { return c && x.t ? dayOf(new Date(x.t)) : ""; });
+    return x;
+  }
+  function dayOf(d) {
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  function today() { return dayOf(new Date()); }
+  function addDays(s, n) { var p = s.split("-"); return dayOf(new Date(+p[0], +p[1] - 1, +p[2] + n)); }
+  // 復習ラダー（DayFlow と同じ）：□の印を左から順に見て段階を決める
+  //   初回○→◎（復習不要）、初回×→✖。×はどの段階からでも✖に戻る。○で1段進む（✖→△→○→◎）
+  //   次の復習日：✖＝翌日、△＝3日後、○＝1週間後（最後に印を付けた日から）
+  var SR_DAYS = { 1: 1, 2: 3, 3: 7 }, SR_MARK = { 1: "✕", 2: "△", 3: "○", 4: "◎" };
+  function ladder(m) {
+    var st = 0, last = "", n = 0;
+    if (m) m.v.forEach(function (c, i) {
+      if (!c) return;
+      n++;
+      st = st === 0 ? (c === "o" ? 4 : 1) : (c === "x" ? 1 : Math.min(st + 1, 4));
+      last = m.d[i] || today();
+    });
+    return { stage: st, n: n, due: st >= 1 && st <= 3 ? addDays(last, SR_DAYS[st]) : null };
   }
   function merge(a, b) {          // 同じ時刻なら a を採る
     var out = {};
@@ -424,25 +459,41 @@ __TREE__
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
 
   var cks = document.querySelectorAll(".ck");
-  function paint() {
-    cks.forEach(function (ck) {
-      var m = marks[ck.dataset.id];
-      ck.querySelectorAll("i").forEach(function (b, i) { b.className = (m && m.v[i]) || ""; });
-    });
+  function paintOne(ck) {
+    var m = marks[ck.dataset.id], v = m ? m.v.slice() : [];
+    while (v.length && !v[v.length - 1]) v.pop();     // 後ろの空は数えない
+    var L = ladder(m);
+    var nb = Math.max(3, v.length + (v.length >= 3 && L.stage >= 1 && L.stage <= 3 ? 1 : 0));
+    while (ck.children.length < nb) ck.appendChild(document.createElement("i"));
+    while (ck.children.length > nb) ck.removeChild(ck.lastChild);
+    Array.prototype.forEach.call(ck.children, function (b, i) { b.className = (m && m.v[i]) || ""; });
+    var lad = ck.parentNode.querySelector(".lad");
+    if (!L.n) { lad.textContent = ""; lad.className = "lad"; }
+    else if (L.stage === 4) { lad.textContent = "◎ 復習不要"; lad.className = "lad s4"; }
+    else if (L.due <= today()) { lad.textContent = SR_MARK[L.stage] + " 今日の復習"; lad.className = "lad s" + L.stage + " due"; }
+    else {
+      var p = L.due.split("-");
+      lad.textContent = SR_MARK[L.stage] + " " + (+p[1]) + "/" + (+p[2]) + " に復習";
+      lad.className = "lad s" + L.stage;
+    }
   }
+  function paint() { cks.forEach(paintOne); }
   paint();
   var timer = null;
   cks.forEach(function (ck) {
-    var id = ck.dataset.id, boxes = ck.querySelectorAll("i");
-    boxes.forEach(function (b) {
-      b.addEventListener("click", function (e) {
-        e.preventDefault(); e.stopPropagation();   // 見出しは開閉させない
-        b.className = NEXT[b.className || ""];
-        var v = []; boxes.forEach(function (x) { v.push(x.className); });
-        marks[id] = { v: v, t: Date.now() };
-        saveLocal();
-        clearTimeout(timer); timer = setTimeout(sync, 1500);
-      });
+    ck.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();   // □のタップでは問題を開閉しない
+      var b = e.target.closest("i");
+      if (!b) return;
+      var idx = Array.prototype.indexOf.call(ck.children, b), id = ck.dataset.id;
+      var m = marks[id] || { v: [], d: [] };
+      var v = m.v.slice(), d = m.d.slice();
+      while (v.length <= idx) { v.push(""); d.push(""); }
+      v[idx] = NEXT[v[idx] || ""];
+      d[idx] = v[idx] ? today() : "";
+      marks[id] = { v: v, d: d, t: Date.now() };
+      saveLocal(); paintOne(ck);
+      clearTimeout(timer); timer = setTimeout(sync, 1500);
     });
   });
 
@@ -461,10 +512,6 @@ __TREE__
     sub.textContent = when + "／印のある問題：" + n + "問" + (lastErr ? "／理由：" + lastErr + "（記録はこの端末に残っています。1分後に自動でやり直します）" : "");
     stEl.hidden = !lastErr;
     stEl.textContent = lastErr ? "同期できていません（記録はこの端末に残っています）。右上の設定で確認できます" : "";
-  }
-  function today() {
-    var d = new Date();
-    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
   var H = { apikey: SUPA_KEY, Authorization: "Bearer " + SUPA_KEY };
   async function cloudGet(key) {
@@ -512,43 +559,50 @@ __TREE__
   window.addEventListener("pageshow", function (e) { if (e.persisted) sync(); });
 
   sync();
-  // 絞り込み：×の数が n 以上の問題だけ表示（その問題を含む見出しは開く。問題そのものは開かない）
-  var FKEY = "kigyoho-toc-filter";
-  function nx(d) {
-    var ck = d.querySelector(":scope > summary > .ck");
-    return ck ? ck.querySelectorAll("i.x").length : -1;   // -1＝問題ではない見出し
+  // 絞り込み：印（すべて／今日の復習／×の数）と回。該当する問題を含む見出しは開く（問題そのものは開かない）
+  var FKEY = "kigyoho-web-filter", fm = "all", fl = "";
+  function hit(q) {
+    if (fl && q.dataset.l !== fl) return false;
+    if (fm === "all") return true;
+    var m = marks[q.querySelector(".ck").dataset.id];
+    if (fm === "today") { var L = ladder(m); return L.due !== null && L.due <= today(); }
+    var nx = m ? m.v.filter(function (c) { return c === "x"; }).length : 0;
+    return nx >= +fm.slice(1);
   }
-  function walk(el, n) {          // el の中に表示する問題があれば true
+  var cnt = 0;
+  function walk(el, on) {          // el の中に表示する問題があれば true
     var any = false;
-    el.querySelectorAll(":scope > details, :scope > .leaf, :scope > .in > details, :scope > .in > .leaf").forEach(function (c) {
-      var hit = c.tagName === "DETAILS" && nx(c) >= Math.max(n, 1);
-      var sub = c.tagName === "DETAILS" ? walk(c, n) : false;
-      var show = n === 0 || hit || sub;
+    el.querySelectorAll(":scope > details, :scope > .in > details").forEach(function (c) {
+      var show = c.classList.contains("q") ? hit(c) : walk(c, on);
+      if (show && c.classList.contains("q")) cnt++;
       c.classList.toggle("hide", !show);
-      // 絞り込み中、対象外の問題の答え（覚える事項）は隠す
-      var memo = c.querySelector(":scope > .in > ul.memo");
-      if (memo) memo.classList.toggle("hide", n > 0 && !hit);
-      if (n > 0 && sub) c.open = true;
-      if (n > 0 && hit) cnt++;
-      any = any || hit || sub;
+      if (on && show && !c.classList.contains("q")) c.open = true;
+      any = any || show;
     });
     return any;
   }
-  var cnt = 0;
-  function applyFilter(n) {
+  function applyFilter() {
     cnt = 0;
-    var any = walk(document.getElementById("tree"), n);
-    document.querySelectorAll(".filter button").forEach(function (b) { b.classList.toggle("on", +b.dataset.n === n); });
-    document.getElementById("cnt").textContent = n > 0 ? cnt + "問" : "";
-    document.getElementById("none").hidden = n === 0 || any;
-    try { localStorage.setItem(FKEY, String(n)); } catch (e) {}
+    var on = fm !== "all" || fl !== "";
+    var any = walk(document.getElementById("tree"), on);
+    document.querySelectorAll(".filter [data-m]").forEach(function (b) { b.classList.toggle("on", b.dataset.m === fm); });
+    document.querySelectorAll(".filter [data-l]").forEach(function (b) { b.classList.toggle("on", b.dataset.l === fl); });
+    document.getElementById("cnt").textContent = on ? cnt + "問" : "";
+    document.getElementById("none").hidden = any;
+    try { localStorage.setItem(FKEY, JSON.stringify({ m: fm, l: fl })); } catch (e) {}
   }
-  document.querySelectorAll(".filter button").forEach(function (b) {
-    b.onclick = function () { applyFilter(+b.dataset.n); };
+  document.querySelectorAll(".filter [data-m]").forEach(function (b) {
+    b.onclick = function () { fm = b.dataset.m; applyFilter(); };
   });
-  var f0 = 0;
-  try { f0 = +(localStorage.getItem(FKEY) || 0); } catch (e) {}
-  applyFilter(f0);
+  document.querySelectorAll(".filter [data-l]").forEach(function (b) {
+    b.onclick = function () { fl = b.dataset.l; applyFilter(); };
+  });
+  try {
+    var f0 = JSON.parse(localStorage.getItem(FKEY)) || {};
+    if (document.querySelector('.filter [data-m="' + f0.m + '"]')) fm = f0.m;
+    if (document.querySelector('.filter [data-l="' + f0.l + '"]')) fl = f0.l;
+  } catch (e) {}
+  applyFilter();
   document.querySelectorAll("a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
@@ -561,56 +615,14 @@ __TREE__
 """
 
 
-TOC_CSS = """
-@page { size: A4; margin: 14mm 14mm 14mm 14mm;
-  @bottom-center { content: counter(page); } }
-body { font-family: 'Noto Sans CJK JP'; font-size: 10.5pt; color: #222; }
-h1.title { font-size: 17pt; margin: 0 0 5mm; letter-spacing: .05em; }
-.row { display: flex; align-items: baseline; gap: 3mm; padding: 1.2mm 0; break-inside: avoid; }
-.row .t { flex: 1; }
-.row .pg { color: #888; font-size: 9pt; white-space: nowrap; }
-.lv1 { background: #e8edf3; font-weight: 700; font-size: 12.5pt; color: #2f4a6d;
-  padding: 2mm 2mm; margin-top: 4mm; break-after: avoid; }
-.lv2 { font-weight: 700; color: #2f4a6d; border-bottom: .4mm solid #2f4a6d;
-  margin: 2.5mm 0 1mm 4mm; break-after: avoid; }
-.lv3 { margin-left: 9mm; font-weight: 700; }
-.lv4 { margin-left: 14mm; }
-.lv5 { margin-left: 19mm; font-size: 10pt; }
-ul.memo { margin: .5mm 0 1.5mm; padding-left: 5mm; color: #c0392b; font-size: 9pt; line-height: 1.55; }
-ul.memo b { color: #a31515; }
-.row .ck { display: flex; gap: 1mm; flex: none; align-self: center; }
-.row .ck i { width: 4mm; height: 4mm; border: .3mm solid #666; }
-"""
-
-TOC_INDENT = {1: 2, 2: 6, 3: 11, 4: 16, 5: 21}
-
-
-def toc_pdf_rows(nodes):
-    out = []
-    for n in nodes:
-        ck = '<span class="ck"><i></i><i></i><i></i></span>' if n["memo"] else ""
-        out.append(f'<div class="row lv{n["level"]}">{ck}<span class="t">{html.escape(n["title"])}</span>{toc_page(n)}</div>')
-        if n["memo"]:
-            out.append(f'<ul class="memo" style="margin-left:{TOC_INDENT[n["level"]] + 3}mm">'
-                       + "".join(f"<li>{m}</li>" for m in n["memo"]) + "</ul>")
-        out.append(toc_pdf_rows(n["children"]))
-    return "".join(out)
-
-
-def build_toc(chrome):
-    root = load_toc()
-    if not root["children"]:
-        return False
-    (BASE / "toc.html").write_text(TOC_HTML.replace("__TREE__", toc_html_nodes(root["children"])), encoding="utf-8")
-    tmp = BASE / "kigyoho_toc.html"
-    tmp.write_text(f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{TOC_CSS}</style></head>
-<body><h1 class="title">企業法　web確認問題</h1>{toc_pdf_rows(root["children"])}</body></html>""", encoding="utf-8")
-    subprocess.run([chrome, "--headless", "--no-sandbox", "--disable-gpu",
-                    "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / '企業法_web確認問題.pdf'}",
-                    tmp.as_uri()], check=True, capture_output=True)
-    tmp.unlink()
-    print("web確認問題 → toc.html, pdf/企業法_web確認問題.pdf")
-    return True
+def build_web():
+    root, lessons = load_web()
+    les = "\n".join(f'    <button data-l="{html.escape(l)}">{html.escape(l)}</button>' for l in lessons)
+    (BASE / "toc.html").write_text(WEB_HTML.replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les),
+                                   encoding="utf-8")
+    n = sum(web_count(x) for x in root)
+    print(f"web確認問題: {n}問 → toc.html")
+    return n
 
 
 def check_font():
@@ -649,14 +661,10 @@ def main():
         counts[name] = nq
         print(f"{name}: {nq}問 → pdf/{fname}")
     tmp.unlink()
-    toc = ""
-    if build_toc(chrome):
-        toc = ('<ul class="toc">\n'
-               '  <li><a data-fresh href="toc.html">web確認問題<span>タップで開く</span></a></li>\n'
-               '  <li><a data-fresh href="pdf/企業法_web確認問題.pdf">web確認問題（PDF）<span>印刷用</span></a></li>\n'
-               '</ul>\n')
-    elif (BASE / "toc.html").exists():
-        (BASE / "toc.html").unlink()
+    nweb = build_web()
+    toc = ('<ul class="toc">\n'
+           f'  <li><a data-fresh href="toc.html">web確認問題<span>{nweb}問</span></a></li>\n'
+           '</ul>\n')
     (BASE / "index.html").write_text(INDEX.replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items)), encoding="utf-8")
     (BASE / "counts.json").write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
     print("ok")
