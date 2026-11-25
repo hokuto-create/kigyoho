@@ -303,6 +303,7 @@ WEB_HTML = """<!DOCTYPE html>
   .qt { margin-top: 6px; color: #2f4a6d; font-size: 15px; line-height: 1.6; }
   .ans { padding: 2px 12px 12px; color: #c0392b; font-size: 14px; line-height: 1.7; border-top: 1px dashed #e3e7ec; margin: 0 10px; padding-top: 8px; }
   .ans b { color: #a31515; }
+  .ans { box-sizing: border-box; overflow: hidden; }
   .filter { align-items: center; margin-top: -6px; }
   .filter .lb { font-size: 13px; color: #666; }
   .filter button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
@@ -385,6 +386,28 @@ __TREE__
       };
     });
     mark();
+  });
+  // 答えはヌルッと開閉する（端末の「視差効果を減らす」がオンなら、すぐ開閉する）
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll("details.q > summary").forEach(function (sm) {
+    sm.addEventListener("click", function (e) {
+      var d = sm.parentNode, a = d.querySelector(".ans");
+      if (reduceMotion || !a.animate) return;
+      e.preventDefault();
+      if (d._anim) { d._anim.cancel(); d._done(); }   // 動いている途中なら、その場で終わらせる
+      var cs = getComputedStyle(a);
+      var shut = { height: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 };
+      var opening = !d.open;
+      if (opening) d.open = true;
+      var full = { height: a.offsetHeight + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
+      d._anim = a.animate(opening ? [shut, full] : [full, shut],
+        { duration: opening ? 340 : 240, easing: "cubic-bezier(.25, .8, .25, 1)" });
+      d._done = function () {
+        d._anim = null;
+        if (!opening) d.open = false;
+      };
+      d._anim.onfinish = function () { if (d._anim) d._done(); };
+    });
   });
   var KEY = "kigyoho-web-open";
   function save() {
