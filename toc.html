@@ -84,8 +84,13 @@
   #cnt { font-size: 13px; color: #666; }
   #none { color: #888; text-align: center; }
   .hide { display: none !important; }
-  #syncStatus { font-size: 12px; color: #1e7d4f; margin: -6px 0 12px; }
-  #syncStatus.bad { color: #c0392b; }
+  #syncStatus { font-size: 12px; color: #c0392b; margin: -6px 0 12px; }
+  .syncbox { background: #f4f6f9; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #333; }
+  .syncbox .st { font-weight: 700; color: #1e7d4f; }
+  .syncbox .st.bad { color: #c0392b; }
+  .syncbox .st.wait { color: #8a97a8; }
+  .syncbox .sub { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.6; }
+  #syncNow { margin-top: 8px; }
   .ck { display: flex; gap: 4px; flex: none; align-self: center; }
   .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
     font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
@@ -113,7 +118,7 @@
     <button data-n="3">×3つ</button>
     <span id="cnt"></span>
   </div>
-  <p id="syncStatus"></p>
+  <p id="syncStatus" hidden></p>
   <div id="tree">
 <details class="lv1" data-key="0."><summary><span class="ck" data-id="／第0編　入門生のためのガイダンス"><i></i><i></i><i></i></span><span class="t">第0編　入門生のためのガイダンス</span></summary><div class="in"><ul class="memo"><li>定款による株式譲渡制限の趣旨：<b>会社にとって好ましくない者</b>が株式取得によって<b>対会社関係に入ってくることを防止</b>すること</li><li>公開会社：発行する<b>全部または一部</b>の株式の内容として、譲渡による取得に会社の承認を要する旨の<b>定款の定めを設けていない</b>株式会社</li><li>公開会社は株主が<b>多数かつ変動</b>し、株主間の関係が<b>希薄</b>。非公開会社は株主が<b>少数かつ変動せず</b>、株主間の関係が<b>緊密</b></li><li>大会社：最終事業年度の貸借対照表で、①<b>資本金5億円以上</b> <b>または</b> ②<b>負債の合計額200億円以上</b>の株式会社</li><li>大会社は株主・会社債権者など<b>利害関係人が多数</b>。非大会社は<b>利害関係人が少数</b></li></ul></div></details><details class="lv1" data-key="1."><summary><span class="t">第1編　会社法総論</span></summary><div class="in"><details class="lv2" data-key="1.0."><summary><span class="ck" data-id="／第1編　会社法総論／第1章　重要な定義"><i></i><i></i><i></i></span><span class="t">第1章　重要な定義</span></summary><div class="in"><ul class="memo"><li>会計限定監査役のみがいる会社は、<b>基本的には監査役設置会社ではない</b>（<b>業務監査権</b>を有する監査役のいる会社が、基本的には監査役設置会社）</li><li>社外取締役の要件：就任前<b>10年間</b>、当該会社・子会社の<b>業務執行取締役等</b>であったことがない、<b>親会社等</b>・<b>兄弟会社</b>の関係者でない、<b>配偶者・2親等内の親族</b>でない ほか（全6つ）</li><li>社外監査役の要件：就任前<b>10年間</b>、当該会社・子会社の<b>取締役・会計参与・執行役・支配人その他の使用人</b>であったことがない ほか（全5つ）</li></ul></div></details><details class="lv2" data-key="1.1."><summary><span class="ck" data-id="／第1編　会社法総論／第3章　会社の概念"><i></i><i></i><i></i></span><span class="t">第3章　会社の概念</span></summary><div class="in"><ul class="memo"><li>会社には<b>株式</b>会社、<b>合名</b>会社、<b>合資</b>会社、<b>合同</b>会社がある（合名・合資・合同は<b>持分会社</b>）</li><li>営利性：(1)対外的な営利活動によって<b>利益を得て</b>、(2)その<b>得た利益を構成員に分配</b>すること。(2)が重要</li><li>剰余金配当請求権・残余財産分配請求権の<b>両者を与えない定款規定は無効</b>（105条2項）</li><li>一人会社は<b>認められる</b>（<b>潜在的には社団性がある</b>）</li><li>法人格を認める理由：①<b>社会的有用性</b> ②<b>法律関係の簡明な処理</b> ③<b>責任財産の分離</b></li><li>判例（権利能力制限説）：会社にも<b>民法34条が適用</b>され、権利能力は<b>定款所定の目的によって制限される</b>。目的の範囲には<b>直接・間接に必要な行為のすべて</b>が含まれ、<b>もっぱら行為の客観的性質</b>に即して判断する</li></ul></div></details></div></details><details class="lv1" data-key="2."><summary><span class="t">第2編　株式会社</span></summary><div class="in"><details class="lv2" data-key="2.0."><summary><span class="ck" data-id="／第2編　株式会社／第1章　株式会社の意義と特色"><i></i><i></i><i></i></span><span class="t">第1章　株式会社の意義と特色</span></summary><div class="in"><ul class="memo"><li><b>株式</b>と<b>有限責任</b>が株式会社の基本的二大特質</li><li>持分会社との対比では、株式会社は「<b>所有と経営の制度的分離</b>」、持分会社は「<b>所有と経営の制度的一致</b>」</li></ul></div></details><details class="lv2" data-key="2.1."><summary><span class="ck" data-id="／第2編　株式会社／第2章　機関"><i></i><i></i><i></i></span><span class="t">第2章　機関</span></summary><div class="in"><ul class="memo"><li>機関設計自由の原則：<b>株主総会と取締役は必置</b>、ほかの機関は定款に規定することにより設置できる</li><li>機関設計自由の原則の例外（327条・328条）：<b>公取会大非監指</b></li><li>株式会社の機関設計は<b>登記</b>事項</li><li>取締役が株主でなければならない旨を定款で定めることは<b>できない</b>（所有と経営の分離）。ただし、<b>非公開会社は可能</b></li></ul></div></details></div></details>
   </div>
@@ -126,15 +131,19 @@
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
     <div class="sec" data-k="kigyoho-font-q" data-attr="qf"><div class="lb">問題の文字</div>
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
+    <div class="sec"><div class="lb">□の記録の同期</div>
+      <div class="syncbox"><div class="st" id="syncSt">確認中…</div><div class="sub" id="syncSub"></div></div>
+      <button id="syncNow">今すぐ同期</button></div>
   </div>
 </div>
 <script>
   // 文字の設定（この端末に保存）
   var setting = document.getElementById("setting");
   document.getElementById("setBtn").onclick = function () { setting.hidden = false; };
+  document.getElementById("syncNow").onclick = function () { sync(); };
   document.getElementById("setClose").onclick = function () { setting.hidden = true; };
   setting.addEventListener("click", function (e) { if (e.target === setting) setting.hidden = true; });
-  document.querySelectorAll("#setting .sec").forEach(function (row) {
+  document.querySelectorAll("#setting .sec[data-attr]").forEach(function (row) {
     var bs = row.querySelectorAll("button");
     function mark() { bs.forEach(function (b) { b.classList.toggle("on", b.dataset.f === document.documentElement.dataset[row.dataset.attr]); }); }
     bs.forEach(function (b) {
@@ -220,8 +229,21 @@
   });
 
   var stEl = document.getElementById("syncStatus");
-  function status(text, bad) { stEl.textContent = text; stEl.className = bad ? "bad" : ""; }
-  function hm() { return new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }); }
+  // 同期の状態：設定画面に詳しく出す。失敗したときだけ、問題の一覧の上にも出す
+  var lastOk = 0, lastErr = "";
+  function status(kind, err) {          // kind: "busy" | "ok" | "bad"
+    if (kind === "ok") { lastOk = Date.now(); lastErr = ""; }
+    if (kind === "bad") lastErr = err;
+    var st = document.getElementById("syncSt"), sub = document.getElementById("syncSub");
+    var n = Object.keys(marks).filter(function (k) { return marks[k].v.join(""); }).length;
+    var when = lastOk ? "最後に同期した時刻：" + new Date(lastOk).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "まだ同期していません";
+    if (kind === "busy") { st.textContent = "同期中…"; st.className = "st wait"; }
+    else if (lastErr) { st.textContent = "× 同期できていません"; st.className = "st bad"; }
+    else { st.textContent = "✓ 同期できています"; st.className = "st"; }
+    sub.textContent = when + "／印のある問題：" + n + "問" + (lastErr ? "／理由：" + lastErr + "（記録はこの端末に残っています。1分後に自動でやり直します）" : "");
+    stEl.hidden = !lastErr;
+    stEl.textContent = lastErr ? "同期できていません（記録はこの端末に残っています）。右上の設定で確認できます" : "";
+  }
   function today() {
     var d = new Date();
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
@@ -246,7 +268,7 @@
   async function sync() {
     if (busy) { again = true; return; }
     busy = true; clearTimeout(retry);
-    status("同期中…");
+    status("busy");
     try {
       var cloud = await cloudGet(CLOUD);
       var remote = (cloud && cloud.marks) || {};
@@ -259,9 +281,9 @@
         await cloudPut("kigyoho-backup:" + day, { marks: merged });
         lsSet(BKEY, day);
       }
-      status("✓ 同期済み " + hm());
+      status("ok");
     } catch (e) {
-      status("同期に失敗しました（" + e + "）。記録はこの端末に残っています。1分後にやり直します", true);
+      status("bad", String(e));
       retry = setTimeout(sync, 60000);
     } finally {
       busy = false;
