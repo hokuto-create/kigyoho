@@ -302,8 +302,13 @@ TOC_HTML = """<!DOCTYPE html>
   #cnt { font-size: 13px; color: #666; }
   #none { color: #888; text-align: center; }
   .hide { display: none !important; }
-  #syncStatus { font-size: 12px; color: #1e7d4f; margin: -6px 0 12px; }
-  #syncStatus.bad { color: #c0392b; }
+  #syncStatus { font-size: 12px; color: #c0392b; margin: -6px 0 12px; }
+  .syncbox { background: #f4f6f9; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #333; }
+  .syncbox .st { font-weight: 700; color: #1e7d4f; }
+  .syncbox .st.bad { color: #c0392b; }
+  .syncbox .st.wait { color: #8a97a8; }
+  .syncbox .sub { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.6; }
+  #syncNow { margin-top: 8px; }
   .ck { display: flex; gap: 4px; flex: none; align-self: center; }
   .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
     font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
@@ -331,7 +336,7 @@ TOC_HTML = """<!DOCTYPE html>
     <button data-n="3">×3つ</button>
     <span id="cnt"></span>
   </div>
-  <p id="syncStatus"></p>
+  <p id="syncStatus" hidden></p>
   <div id="tree">
 __TREE__
   </div>
@@ -344,15 +349,19 @@ __TREE__
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
     <div class="sec" data-k="kigyoho-font-q" data-attr="qf"><div class="lb">問題の文字</div>
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
+    <div class="sec"><div class="lb">□の記録の同期</div>
+      <div class="syncbox"><div class="st" id="syncSt">確認中…</div><div class="sub" id="syncSub"></div></div>
+      <button id="syncNow">今すぐ同期</button></div>
   </div>
 </div>
 <script>
   // 文字の設定（この端末に保存）
   var setting = document.getElementById("setting");
   document.getElementById("setBtn").onclick = function () { setting.hidden = false; };
+  document.getElementById("syncNow").onclick = function () { sync(); };
   document.getElementById("setClose").onclick = function () { setting.hidden = true; };
   setting.addEventListener("click", function (e) { if (e.target === setting) setting.hidden = true; });
-  document.querySelectorAll("#setting .sec").forEach(function (row) {
+  document.querySelectorAll("#setting .sec[data-attr]").forEach(function (row) {
     var bs = row.querySelectorAll("button");
     function mark() { bs.forEach(function (b) { b.classList.toggle("on", b.dataset.f === document.documentElement.dataset[row.dataset.attr]); }); }
     bs.forEach(function (b) {
@@ -438,8 +447,21 @@ __TREE__
   });
 
   var stEl = document.getElementById("syncStatus");
-  function status(text, bad) { stEl.textContent = text; stEl.className = bad ? "bad" : ""; }
-  function hm() { return new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }); }
+  // 同期の状態：設定画面に詳しく出す。失敗したときだけ、問題の一覧の上にも出す
+  var lastOk = 0, lastErr = "";
+  function status(kind, err) {          // kind: "busy" | "ok" | "bad"
+    if (kind === "ok") { lastOk = Date.now(); lastErr = ""; }
+    if (kind === "bad") lastErr = err;
+    var st = document.getElementById("syncSt"), sub = document.getElementById("syncSub");
+    var n = Object.keys(marks).filter(function (k) { return marks[k].v.join(""); }).length;
+    var when = lastOk ? "最後に同期した時刻：" + new Date(lastOk).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "まだ同期していません";
+    if (kind === "busy") { st.textContent = "同期中…"; st.className = "st wait"; }
+    else if (lastErr) { st.textContent = "× 同期できていません"; st.className = "st bad"; }
+    else { st.textContent = "✓ 同期できています"; st.className = "st"; }
+    sub.textContent = when + "／印のある問題：" + n + "問" + (lastErr ? "／理由：" + lastErr + "（記録はこの端末に残っています。1分後に自動でやり直します）" : "");
+    stEl.hidden = !lastErr;
+    stEl.textContent = lastErr ? "同期できていません（記録はこの端末に残っています）。右上の設定で確認できます" : "";
+  }
   function today() {
     var d = new Date();
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
@@ -464,7 +486,7 @@ __TREE__
   async function sync() {
     if (busy) { again = true; return; }
     busy = true; clearTimeout(retry);
-    status("同期中…");
+    status("busy");
     try {
       var cloud = await cloudGet(CLOUD);
       var remote = (cloud && cloud.marks) || {};
@@ -477,9 +499,9 @@ __TREE__
         await cloudPut("kigyoho-backup:" + day, { marks: merged });
         lsSet(BKEY, day);
       }
-      status("✓ 同期済み " + hm());
+      status("ok");
     } catch (e) {
-      status("同期に失敗しました（" + e + "）。記録はこの端末に残っています。1分後にやり直します", true);
+      status("bad", String(e));
       retry = setTimeout(sync, 60000);
     } finally {
       busy = false;
