@@ -223,11 +223,44 @@ TOC_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
 <title>企業法 web確認問題</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Klee+One:wght@400;600&family=Zen+Old+Mincho:wght@400;700&family=Cormorant+Garamond:ital,wght@1,500&display=swap">
+<script>
+  // 文字の設定（タイトル・問題部分それぞれ a/c/d）を、描画の前に反映する
+  try {
+    document.documentElement.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a";
+    document.documentElement.dataset.qf = localStorage.getItem("kigyoho-font-q") || "a";
+  } catch (e) { document.documentElement.dataset.tf = document.documentElement.dataset.qf = "a"; }
+</script>
 <style>
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
     margin: 0; padding: 24px 16px 48px; background: #f4f6f9; color: #222; }
   .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 22px; color: #2f4a6d; margin: 0 0 4px; }
+  h1 { font-size: 30px; font-weight: 700; color: #2f4a6d; margin: 0 0 4px; letter-spacing: .06em; line-height: 1.3; }
+  h1 em { font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 500; font-size: 1.15em;
+    letter-spacing: 0; margin-right: .08em; }
+  h1 .eb { display: block; font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 500;
+    font-size: 15px; letter-spacing: .12em; color: #8a97a8; }
+  /* 文字の設定：s＝標準（端末のゴシック）、a＝上品な明朝、c＝手書き風、d＝クラシックな明朝 */
+  [data-tf=a] h1 { font-family: "Shippori Mincho", serif; }
+  [data-tf=c] h1 { font-family: "Klee One", serif; font-weight: 600; }
+  [data-tf=d] h1 { font-family: "Zen Old Mincho", serif; }
+  [data-qf=a] #tree { font-family: "Shippori Mincho", serif; font-weight: 500; }
+  [data-qf=c] #tree { font-family: "Klee One", serif; }
+  [data-qf=d] #tree { font-family: "Zen Old Mincho", serif; }
+  #tree summary .t, #tree .leaf .t, #tree b { font-weight: 700; }
+  [data-qf=c] #tree summary .t, [data-qf=c] #tree .leaf .t, [data-qf=c] #tree b { font-weight: 600; }
+  #fontPanel { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; padding: 10px 14px; margin: -4px 0 16px; }
+  #fontPanel .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+  #fontPanel .lb { font-size: 13px; color: #666; width: 64px; }
+  #fontPanel button { font-size: 16px; padding: 6px 14px; border-radius: 10px; border: 1px solid #c8ced6;
+    background: #fff; color: #2f4a6d; cursor: pointer; }
+  #fontPanel button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
+  #fontPanel [data-f=s] { font-weight: 700; }
+  #fontPanel [data-f=a] { font-family: "Shippori Mincho", serif; font-weight: 700; }
+  #fontPanel [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
+  #fontPanel [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
   .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
   .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
     border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
@@ -270,12 +303,19 @@ TOC_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-  <h1>企業法 web確認問題</h1>
+  <h1><span class="eb">Corporate Law · Web Review</span>企業法 <em>web</em>確認問題</h1>
   <div class="bar">
     <a href="./">← 戻る</a>
     <button id="openAll">すべて開く</button>
     <button id="closeAll">すべて閉じる</button>
     <a data-fresh href="pdf/企業法_web確認問題.pdf">PDF</a>
+    <button id="fontBtn">Aa 文字</button>
+  </div>
+  <div id="fontPanel" hidden>
+    <div class="row" data-k="kigyoho-font-title" data-attr="tf"><span class="lb">タイトル</span>
+      <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
+    <div class="row" data-k="kigyoho-font-q" data-attr="qf"><span class="lb">問題</span>
+      <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
   </div>
   <div class="bar filter">
     <span class="lb">絞り込み</span>
@@ -292,6 +332,22 @@ __TREE__
   <p id="none" hidden>該当する問題はありません</p>
 </div>
 <script>
+  // 文字の設定（この端末に保存）
+  document.getElementById("fontBtn").onclick = function () {
+    var fp = document.getElementById("fontPanel"); fp.hidden = !fp.hidden;
+  };
+  document.querySelectorAll("#fontPanel .row").forEach(function (row) {
+    var bs = row.querySelectorAll("button");
+    function mark() { bs.forEach(function (b) { b.classList.toggle("on", b.dataset.f === document.documentElement.dataset[row.dataset.attr]); }); }
+    bs.forEach(function (b) {
+      b.onclick = function () {
+        document.documentElement.dataset[row.dataset.attr] = b.dataset.f;
+        try { localStorage.setItem(row.dataset.k, b.dataset.f); } catch (e) {}
+        mark();
+      };
+    });
+    mark();
+  });
   var KEY = "kigyoho-toc-open";
   function save() {
     var keys = [];
