@@ -257,6 +257,15 @@ TOC_HTML = """<!DOCTYPE html>
   #cnt { font-size: 13px; color: #666; }
   #none { color: #888; text-align: center; }
   .hide { display: none !important; }
+  #syncStatus { font-size: 12px; color: #1e7d4f; margin: -6px 0 12px; }
+  #syncStatus.bad { color: #c0392b; }
+  details.sync { margin-top: 28px; background: #fff; border: 1px solid #c8ced6; border-radius: 12px; }
+  details.sync > summary { font-size: 14px; }
+  .sbox { padding: 0 14px 14px; font-size: 13px; color: #555; }
+  .sbox input[type=email] { font: inherit; font-size: 16px; width: 100%; box-sizing: border-box;
+    padding: 8px 10px; border: 1px solid #c8ced6; border-radius: 8px; margin-bottom: 8px; }
+  .sbox button, .sbox .btn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px; display: inline-block;
+    border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; cursor: pointer; margin: 0 6px 6px 0; }
   .ck { display: flex; gap: 4px; flex: none; align-self: center; }
   .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
     font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
@@ -283,16 +292,28 @@ TOC_HTML = """<!DOCTYPE html>
     <button data-n="3">×3つ</button>
     <span id="cnt"></span>
   </div>
+  <p id="syncStatus"></p>
   <div id="tree">
 __TREE__
   </div>
   <p id="none" hidden>該当する問題はありません</p>
+  <details class="sync">
+    <summary>同期・バックアップ</summary>
+    <div class="sbox">
+      <p>同期用のメール（DayFlow と同じでよい）。どの端末でも同じメールを入れると、□の記録が同期されます。</p>
+      <input id="syncEmail" type="email" autocomplete="email" placeholder="メールアドレス">
+      <button id="syncSave">保存して同期</button>
+      <p>念のため、記録をファイルに保存しておくこともできます。読み込むと今の記録に合わさり、どちらの記録も消えません。</p>
+      <button id="bkSave">記録をファイルに保存</button>
+      <label class="btn">ファイルから読み込む<input id="bkLoad" type="file" accept=".json,application/json" hidden></label>
+    </div>
+  </details>
 </div>
 <script>
   var KEY = "kigyoho-toc-open";
   function save() {
     var keys = [];
-    document.querySelectorAll("details[open]").forEach(function (d) { keys.push(d.dataset.key); });
+    document.querySelectorAll("#tree details[open]").forEach(function (d) { keys.push(d.dataset.key); });
     try { localStorage.setItem(KEY, JSON.stringify(keys)); } catch (e) {}
   }
   try {
@@ -301,30 +322,148 @@ __TREE__
       if (d) d.open = true;
     });
   } catch (e) {}
-  document.querySelectorAll("details").forEach(function (d) { d.addEventListener("toggle", save); });
+  document.querySelectorAll("#tree details").forEach(function (d) { d.addEventListener("toggle", save); });
   document.getElementById("openAll").onclick = function () {
-    document.querySelectorAll("details").forEach(function (d) { d.open = true; });
+    document.querySelectorAll("#tree details").forEach(function (d) { d.open = true; });
   };
   document.getElementById("closeAll").onclick = function () {
-    document.querySelectorAll("details").forEach(function (d) { d.open = false; });
+    document.querySelectorAll("#tree details").forEach(function (d) { d.open = false; });
   };
-  // チェック□□□：タップで 空→×→○→空。この端末のブラウザに保存する
-  var MKEY = "kigyoho-toc-marks", NEXT = { "": "x", x: "o", o: "" }, marks = {};
-  try { marks = JSON.parse(localStorage.getItem(MKEY)) || {}; } catch (e) {}
-  document.querySelectorAll(".ck").forEach(function (ck) {
+  // ---- チェック□□□の記録と同期 ----
+  // marks = { 問題ID: { v: ["x","o",""], t: 変更した時刻(ms) } }
+  // ・消さない：□を全部空に戻しても {v:["","",""], t} として残す。見出しが無くなった問題の記録も残す
+  // ・合わせ方：問題ごとに t の新しい方を採る（空の端末・古い端末と同期しても、新しい記録は消えない）
+  // ・クラウド（DayFlow と同じ Supabase の表）に、本体と日付ごとのバックアップを置く
+  var MKEY = "kigyoho-toc-marks", EKEY = "kigyoho-sync-email", BKEY = "kigyoho-backup-day";
+  var NEXT = { "": "x", x: "o", o: "" };
+  var SUPA_URL = "https://bspylkvejufqinglwfga.supabase.co";
+  var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzcHlsa3ZlanVmcWluZ2x3ZmdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MDc5MTAsImV4cCI6MjA5NTA4MzkxMH0.L9yyNoOQQ_hsBPAyut32d3rdgvW1W2mGffHRK2ZaH8w";
+  function norm(x) {
+    if (Array.isArray(x)) return { v: x, t: 0 };       // 以前の形式
+    return x && Array.isArray(x.v) ? x : null;
+  }
+  function merge(a, b) {          // 同じ時刻なら a を採る
+    var out = {};
+    [a, b].forEach(function (s) {
+      Object.keys(s || {}).forEach(function (k) {
+        var x = norm(s[k]);
+        if (x && (!out[k] || (x.t || 0) > (out[k].t || 0))) out[k] = x;
+      });
+    });
+    return out;
+  }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var marks = {};
+  try { marks = merge(JSON.parse(lsGet(MKEY)) || {}, {}); } catch (e) {}
+  function saveLocal() { lsSet(MKEY, JSON.stringify(marks)); }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+
+  var cks = document.querySelectorAll(".ck");
+  function paint() {
+    cks.forEach(function (ck) {
+      var m = marks[ck.dataset.id];
+      ck.querySelectorAll("i").forEach(function (b, i) { b.className = (m && m.v[i]) || ""; });
+    });
+  }
+  paint();
+  var timer = null;
+  cks.forEach(function (ck) {
     var id = ck.dataset.id, boxes = ck.querySelectorAll("i");
-    var m = marks[id] || [];
-    boxes.forEach(function (b, i) {
-      if (m[i]) b.className = m[i];
+    boxes.forEach(function (b) {
       b.addEventListener("click", function (e) {
         e.preventDefault(); e.stopPropagation();   // 見出しは開閉させない
         b.className = NEXT[b.className || ""];
         var v = []; boxes.forEach(function (x) { v.push(x.className); });
-        if (v.join("")) marks[id] = v; else delete marks[id];
-        try { localStorage.setItem(MKEY, JSON.stringify(marks)); } catch (e) {}
+        marks[id] = { v: v, t: Date.now() };
+        saveLocal();
+        clearTimeout(timer); timer = setTimeout(sync, 1500);
       });
     });
   });
+
+  var email = lsGet(EKEY) || "";
+  var stEl = document.getElementById("syncStatus");
+  function status(text, bad) { stEl.textContent = text; stEl.className = bad ? "bad" : ""; }
+  function hm() { return new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }); }
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  var H = { apikey: SUPA_KEY, Authorization: "Bearer " + SUPA_KEY };
+  async function cloudGet(key) {
+    var res = await fetch(SUPA_URL + "/rest/v1/dayflow_data?user_email=eq." + encodeURIComponent(key) + "&select=data",
+      { headers: H, cache: "no-store" });
+    if (!res.ok) throw "取得 HTTP " + res.status;
+    var rows = await res.json();
+    return rows[0] ? rows[0].data : null;
+  }
+  async function cloudPut(key, data) {
+    var res = await fetch(SUPA_URL + "/rest/v1/dayflow_data", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" }, H),
+      body: JSON.stringify({ user_email: key, data: data, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw "送信 HTTP " + res.status;
+  }
+  var busy = false, again = false, retry = null;
+  async function sync() {
+    if (!email) { status("この端末だけに保存しています（同期するには、下の「同期・バックアップ」でメールを入れてください）"); return; }
+    if (busy) { again = true; return; }
+    busy = true; clearTimeout(retry);
+    status("同期中…");
+    try {
+      var main = "kigyoho:" + email;
+      var cloud = await cloudGet(main);
+      var remote = (cloud && cloud.marks) || {};
+      var merged = merge(marks, remote);
+      marks = merged; saveLocal(); paint();
+      var changed = JSON.stringify(merged) !== JSON.stringify(merge(remote, {}));
+      if (changed) await cloudPut(main, { marks: merged });
+      var day = today();
+      if (changed || lsGet(BKEY) !== day) {         // 日付ごとのバックアップ（その日の最新）
+        await cloudPut("kigyoho-backup:" + email + ":" + day, { marks: merged });
+        lsSet(BKEY, day);
+      }
+      status("✓ 同期済み " + hm());
+    } catch (e) {
+      status("同期に失敗しました（" + e + "）。記録はこの端末に残っています。1分後にやり直します", true);
+      retry = setTimeout(sync, 60000);
+    } finally {
+      busy = false;
+      if (again) { again = false; sync(); }
+    }
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) sync(); });
+  window.addEventListener("pageshow", function (e) { if (e.persisted) sync(); });
+
+  var emailIn = document.getElementById("syncEmail");
+  emailIn.value = email;
+  document.getElementById("syncSave").onclick = function () {
+    email = emailIn.value.trim();
+    lsSet(EKEY, email);
+    sync();
+  };
+  // バックアップのファイル（書き出し・読み込み。読み込んだ記録は今の記録に合わせる。消えるものはない）
+  document.getElementById("bkSave").onclick = function () {
+    var blob = new Blob([JSON.stringify({ marks: marks }, null, 1)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kigyoho-web-marks-" + today() + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  document.getElementById("bkLoad").onchange = function (e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    f.text().then(function (txt) {
+      var d = JSON.parse(txt);
+      marks = merge(marks, d.marks || d);
+      saveLocal(); paint(); sync();
+      alert("バックアップを読み込みました");
+    }).catch(function () { alert("読み込めませんでした（ファイルを確認してください）"); });
+    e.target.value = "";
+  };
+  sync();
   // 絞り込み：×の数が n 以上の問題だけ表示（その問題を含む見出しは開く。問題そのものは開かない）
   var FKEY = "kigyoho-toc-filter";
   function nx(d) {
