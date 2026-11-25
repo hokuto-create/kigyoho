@@ -251,16 +251,28 @@ TOC_HTML = """<!DOCTYPE html>
   [data-qf=d] #tree { font-family: "Zen Old Mincho", serif; }
   #tree summary .t, #tree .leaf .t, #tree b { font-weight: 700; }
   [data-qf=c] #tree summary .t, [data-qf=c] #tree .leaf .t, [data-qf=c] #tree b { font-weight: 600; }
-  #fontPanel { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; padding: 10px 14px; margin: -4px 0 16px; }
-  #fontPanel .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
-  #fontPanel .lb { font-size: 13px; color: #666; width: 64px; }
-  #fontPanel button { font-size: 16px; padding: 6px 14px; border-radius: 10px; border: 1px solid #c8ced6;
-    background: #fff; color: #2f4a6d; cursor: pointer; }
-  #fontPanel button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
-  #fontPanel [data-f=s] { font-weight: 700; }
-  #fontPanel [data-f=a] { font-family: "Shippori Mincho", serif; font-weight: 700; }
-  #fontPanel [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
-  #fontPanel [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
+  .wrap { position: relative; }
+  #setBtn { position: absolute; top: 0; right: 0; width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0; }
+  h1 { padding-right: 52px; }
+  #setting { position: fixed; inset: 0; background: rgba(20, 30, 45, .35); z-index: 10;
+    display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; }
+  #setting[hidden] { display: none; }
+  .sheet { background: #fff; border-radius: 16px; width: 100%; max-width: 520px; padding: 6px 18px 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .2); }
+  .sh { display: flex; align-items: center; justify-content: space-between; font-size: 18px; font-weight: 700;
+    color: #2f4a6d; padding: 8px 0 4px; }
+  #setClose { font-size: 26px; line-height: 1; border: 0; background: none; color: #8a97a8; cursor: pointer; padding: 4px 6px; }
+  .sec { margin-top: 12px; }
+  .sec .lb { font-size: 13px; color: #666; margin-bottom: 6px; }
+  .sec button { font-size: 16px; padding: 7px 14px; border-radius: 10px; border: 1px solid #c8ced6;
+    background: #fff; color: #2f4a6d; cursor: pointer; margin: 0 6px 6px 0; }
+  .sec button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
+  .sec [data-f=s] { font-weight: 700; }
+  .sec [data-f=a] { font-family: "Shippori Mincho", serif; font-weight: 700; }
+  .sec [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
+  .sec [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
   .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
   .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
     border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
@@ -303,19 +315,13 @@ TOC_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+  <button id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   <h1><span class="eb">Corporate Law · Web Review</span>企業法 <em>web</em>確認問題</h1>
   <div class="bar">
     <a href="./">← 戻る</a>
     <button id="openAll">すべて開く</button>
     <button id="closeAll">すべて閉じる</button>
     <a data-fresh href="pdf/企業法_web確認問題.pdf">PDF</a>
-    <button id="fontBtn">Aa 文字</button>
-  </div>
-  <div id="fontPanel" hidden>
-    <div class="row" data-k="kigyoho-font-title" data-attr="tf"><span class="lb">タイトル</span>
-      <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
-    <div class="row" data-k="kigyoho-font-q" data-attr="qf"><span class="lb">問題</span>
-      <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
   </div>
   <div class="bar filter">
     <span class="lb">絞り込み</span>
@@ -331,12 +337,22 @@ __TREE__
   </div>
   <p id="none" hidden>該当する問題はありません</p>
 </div>
+<div id="setting" hidden>
+  <div class="sheet" role="dialog" aria-label="設定">
+    <div class="sh"><span>設定</span><button id="setClose" aria-label="閉じる">×</button></div>
+    <div class="sec" data-k="kigyoho-font-title" data-attr="tf"><div class="lb">タイトルの文字</div>
+      <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
+    <div class="sec" data-k="kigyoho-font-q" data-attr="qf"><div class="lb">問題の文字</div>
+      <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
+  </div>
+</div>
 <script>
   // 文字の設定（この端末に保存）
-  document.getElementById("fontBtn").onclick = function () {
-    var fp = document.getElementById("fontPanel"); fp.hidden = !fp.hidden;
-  };
-  document.querySelectorAll("#fontPanel .row").forEach(function (row) {
+  var setting = document.getElementById("setting");
+  document.getElementById("setBtn").onclick = function () { setting.hidden = false; };
+  document.getElementById("setClose").onclick = function () { setting.hidden = true; };
+  setting.addEventListener("click", function (e) { if (e.target === setting) setting.hidden = true; });
+  document.querySelectorAll("#setting .sec").forEach(function (row) {
     var bs = row.querySelectorAll("button");
     function mark() { bs.forEach(function (b) { b.classList.toggle("on", b.dataset.f === document.documentElement.dataset[row.dataset.attr]); }); }
     bs.forEach(function (b) {
