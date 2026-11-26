@@ -113,7 +113,9 @@
   .judge .jundo { font-size: 12px; font-weight: 400; color: #8a97a8; border: 0; padding: 6px 4px; text-decoration: underline; }
   .judge .jundo[hidden] { display: none; }
   .ans { box-sizing: border-box; overflow: hidden; }
-  .in { box-sizing: border-box; display: flow-root; }
+  .in { box-sizing: border-box; overflow: hidden; }   /* overflow で中の余白の計算を開閉アニメと揃える */
+  /* 閉じている編・章・問題の中身は確実に消す（Safari で閉じた中身が場所だけ取るのを防ぐ） */
+  details:not([open]) > .in, details:not([open]) > .ans { display: none; }
   .filter { align-items: center; margin-top: -6px; }
   .filter .lb { font-size: 13px; color: #666; min-width: 4.5em; }
 
@@ -492,7 +494,7 @@
   });
 </script>
 <script>
-  var APP_VERSION = "c5ff36b853b3";
+  var APP_VERSION = "e2d078118e19";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
