@@ -231,7 +231,10 @@ def web_nodes(nodes, lv=1):
             qs.append(f'<details class="q" data-l="{html.escape(q["lesson"])}"><summary><div class="qm">'
                       f'<span class="ck" data-id="q:{html.escape(q["q"])}"><i></i><i></i><i></i></span>'
                       f'<span class="no">No.{html.escape(q["no"])}</span>{pg}{adv}<span class="lad"></span></div>'
-                      f'<div class="qt">{html.escape(q["q"])}</div></summary><div class="ans">{q["a"]}</div></details>')
+                      f'<div class="qt">{html.escape(q["q"])}</div></summary><div class="ans"><div class="atext">{q["a"]}</div>'
+                      '<div class="judge"><button class="jo" data-r="o">○ できた</button>'
+                      '<button class="jx" data-r="x">× できなかった</button>'
+                      '<button class="jundo" data-r="">最後の印を消す</button></div></div></details>')
         inner = "".join(qs) + web_nodes(n["children"], lv + 1)
         out.append(f'<details class="h lv{lv}" data-key="h:{html.escape(n["title"])}"><summary class="hd">'
                    f'<span class="t">{html.escape(n["title"])}</span><span class="hcnt">{web_count(n)}問</span></summary>'
@@ -339,6 +342,15 @@ WEB_HTML = """<!DOCTYPE html>
   .qt { margin-top: 6px; color: #2f4a6d; font-size: 15px; line-height: 1.6; }
   .ans { padding: 2px 12px 12px; color: #c0392b; font-size: 14px; line-height: 1.7; border-top: 1px dashed #e3e7ec; margin: 0 10px; padding-top: 8px; }
   .ans b { color: #a31515; }
+  /* 判定ボタン（印はここでだけ付ける。□は表示だけ） */
+  .judge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px;
+    font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  .judge button { font: inherit; font-size: 15px; font-weight: 700; padding: 9px 16px; border-radius: 10px;
+    cursor: pointer; border: 1.5px solid; background: #fff; }
+  .judge .jo { color: #1e7d4f; border-color: #1e7d4f; }
+  .judge .jx { color: #c0392b; border-color: #c0392b; margin-right: auto; }
+  .judge .jundo { font-size: 12px; font-weight: 400; color: #8a97a8; border: 0; padding: 6px 4px; text-decoration: underline; }
+  .judge .jundo[hidden] { display: none; }
   .ans { box-sizing: border-box; overflow: hidden; }
   .in { box-sizing: border-box; display: flow-root; }
   .filter { align-items: center; margin-top: -6px; }
@@ -439,29 +451,29 @@ __TREE__
   });
   // 答え・編・章はヌルッと開閉する（端末の「視差効果を減らす」がオンなら、すぐ開閉する）
   var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function toggle(d) {
+    var a = d.querySelector(":scope > .ans, :scope > .in");
+    if (reduceMotion || !a.animate) { d.open = !d.open; return; }
+    if (d._anim) { d._anim.cancel(); d._done(); }   // 動いている途中なら、その場で終わらせる
+    var cs = getComputedStyle(a);
+    var shut = { height: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 };
+    var opening = !d.open;
+    if (opening) d.open = true;
+    var h = a.offsetHeight;
+    var full = { height: h + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
+    var ms = Math.min(750, 460 + h / 5);         // 中身が多いほど少しゆっくり
+    a.style.overflow = "hidden";
+    d._anim = a.animate(opening ? [shut, full] : [full, shut],
+      { duration: opening ? ms : ms * 0.7, easing: "cubic-bezier(.25, .8, .25, 1)" });
+    d._done = function () {
+      d._anim = null;
+      a.style.overflow = "";
+      if (!opening) d.open = false;
+    };
+    d._anim.onfinish = function () { if (d._anim) d._done(); };
+  }
   document.querySelectorAll("details.q > summary, details.h > summary").forEach(function (sm) {
-    sm.addEventListener("click", function (e) {
-      var d = sm.parentNode, a = d.querySelector(":scope > .ans, :scope > .in");
-      if (reduceMotion || !a.animate) return;
-      e.preventDefault();
-      if (d._anim) { d._anim.cancel(); d._done(); }   // 動いている途中なら、その場で終わらせる
-      var cs = getComputedStyle(a);
-      var shut = { height: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 };
-      var opening = !d.open;
-      if (opening) d.open = true;
-      var h = a.offsetHeight;
-      var full = { height: h + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
-      var ms = Math.min(750, 460 + h / 5);         // 中身が多いほど少しゆっくり
-      a.style.overflow = "hidden";
-      d._anim = a.animate(opening ? [shut, full] : [full, shut],
-        { duration: opening ? ms : ms * 0.7, easing: "cubic-bezier(.25, .8, .25, 1)" });
-      d._done = function () {
-        d._anim = null;
-        a.style.overflow = "";
-        if (!opening) d.open = false;
-      };
-      d._anim.onfinish = function () { if (d._anim) d._done(); };
-    });
+    sm.addEventListener("click", function (e) { e.preventDefault(); toggle(sm.parentNode); });
   });
   var KEY = "kigyoho-web-open";
   function save() {
@@ -490,7 +502,6 @@ __TREE__
   // ・クラウド（DayFlow と同じ Supabase の表）に、本体と日付ごとのバックアップを置く。操作は不要（自動で同期）
   var CLOUD = "kigyoho:marks";   // 全端末で共通の保存先
   var MKEY = "kigyoho-toc-marks", BKEY = "kigyoho-backup-day";
-  var NEXT = { "": "x", x: "o", o: "" };
   var SUPA_URL = "https://bspylkvejufqinglwfga.supabase.co";
   var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzcHlsa3ZlanVmcWluZ2x3ZmdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MDc5MTAsImV4cCI6MjA5NTA4MzkxMH0.L9yyNoOQQ_hsBPAyut32d3rdgvW1W2mGffHRK2ZaH8w";
   function norm(x) {
@@ -564,6 +575,8 @@ __TREE__
       else delete b.dataset.d;
     });
     ck.classList.toggle("hasd", hasd);
+    var undo = ck.closest("details.q").querySelector(".jundo");
+    if (undo) undo.hidden = !v.length;
     var lad = ck.parentNode.querySelector(".lad");
     if (!L.n) { lad.textContent = ""; lad.className = "lad"; }
     else if (L.stage === 4) { lad.textContent = "◎ 復習不要"; lad.className = "lad s4"; }
@@ -577,20 +590,25 @@ __TREE__
   function paint() { cks.forEach(paintOne); }
   paint();
   var timer = null;
-  cks.forEach(function (ck) {
-    ck.addEventListener("click", function (e) {
-      e.preventDefault(); e.stopPropagation();   // □のタップでは問題を開閉しない
-      var b = e.target.closest("i");
-      if (!b) return;
-      var idx = Array.prototype.indexOf.call(ck.children, b), id = ck.dataset.id;
-      var m = marks[id] || { v: [], d: [] };
-      var v = m.v.slice(), d = m.d.slice();
-      while (v.length <= idx) { v.push(""); d.push(""); }
-      v[idx] = NEXT[v[idx] || ""];
-      d[idx] = v[idx] ? today() : "";
-      marks[id] = { v: v, d: d, t: Date.now() };
-      saveLocal(); paintOne(ck);
-      clearTimeout(timer); timer = setTimeout(sync, 1500);
+  // 印を付ける：答えの下の「○ できた」「× できなかった」で、次の空いている□に入れる。
+  // 「最後の印を消す」で一番右の印を消す。□そのものはタップしても変わらない（タップミス対策）
+  function judge(q, r) {
+    var ck = q.querySelector(".ck"), id = ck.dataset.id;
+    var m = marks[id] || { v: [], d: [] };
+    var v = m.v.slice(), d = m.d.slice();
+    while (v.length && !v[v.length - 1]) { v.pop(); d.pop(); }   // 後ろの空は詰める
+    if (r) { v.push(r); d.push(today()); }
+    else if (v.length) { v.pop(); d.pop(); }
+    else return;
+    marks[id] = { v: v, d: d, t: Date.now() };
+    saveLocal(); paintOne(ck);
+    clearTimeout(timer); timer = setTimeout(sync, 1500);
+  }
+  document.querySelectorAll("details.q .judge button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var q = b.closest("details.q");
+      judge(q, b.dataset.r);
+      if (b.dataset.r) toggle(q);                  // 判定したら答えを閉じる
     });
   });
 
