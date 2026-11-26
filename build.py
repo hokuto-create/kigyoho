@@ -607,8 +607,7 @@ __TREE__
   document.querySelectorAll("details.q .judge button").forEach(function (b) {
     b.addEventListener("click", function () {
       var q = b.closest("details.q");
-      judge(q, b.dataset.r);
-      if (b.dataset.r) toggle(q);                  // 判定したら答えを閉じる
+      judge(q, b.dataset.r);                       // 判定しても答えは開いたまま
     });
   });
 
