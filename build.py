@@ -1,4 +1,4 @@
-import csv, html, json, re, subprocess, pathlib, shutil
+import csv, html, json, re, subprocess, pathlib, shutil, hashlib
 
 BASE = pathlib.Path(__file__).parent
 PDF_DIR = BASE / "pdf"
@@ -161,6 +161,32 @@ __ITEMS__
 """
 
 
+# ---------- 更新チェック（ホーム画面のアプリなどで古い版が残らないように） ----------
+# ページを開いたとき・アプリに戻ったときに公開中のページを取り直し、版が違えば新しい URL で開き直す。
+# 版はページの中身のハッシュ（中身が変わったときだけ変わる）。
+UPDATE_JS = """<script>
+  var APP_VERSION = "__VER__";
+  async function checkUpdate() {
+    try {
+      var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      var m = (await r.text()).match(/APP_VERSION = "([0-9a-f]+)"/);
+      if (m && m[1] !== APP_VERSION && location.search.indexOf("v=" + m[1]) < 0)
+        location.replace(location.pathname + "?v=" + m[1] + location.hash);
+    } catch (e) {}
+  }
+  checkUpdate();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) checkUpdate(); });
+</script>
+"""
+
+
+def with_version(page):
+    """</body> の前に更新チェックを入れ、中身のハッシュを版として埋め込む"""
+    ver = hashlib.sha1(page.encode("utf-8")).hexdigest()[:12]
+    return page.replace("</body>", UPDATE_JS.replace("__VER__", ver) + "</body>", 1)
+
+
 # ---------- web確認問題（一問一答を1問ずつ、web で） ----------
 def load_web():
     """questions.csv を 編→章→問題 の木にする（回をまたいで同じ編・章はまとめる）。
@@ -304,6 +330,7 @@ WEB_HTML = """<!DOCTYPE html>
   .ans { padding: 2px 12px 12px; color: #c0392b; font-size: 14px; line-height: 1.7; border-top: 1px dashed #e3e7ec; margin: 0 10px; padding-top: 8px; }
   .ans b { color: #a31515; }
   .ans { box-sizing: border-box; overflow: hidden; }
+  .in { box-sizing: border-box; display: flow-root; }
   .filter { align-items: center; margin-top: -6px; }
   .filter .lb { font-size: 13px; color: #666; }
   .filter button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
@@ -387,11 +414,11 @@ __TREE__
     });
     mark();
   });
-  // 答えはヌルッと開閉する（端末の「視差効果を減らす」がオンなら、すぐ開閉する）
+  // 答え・編・章はヌルッと開閉する（端末の「視差効果を減らす」がオンなら、すぐ開閉する）
   var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  document.querySelectorAll("details.q > summary").forEach(function (sm) {
+  document.querySelectorAll("details.q > summary, details.h > summary").forEach(function (sm) {
     sm.addEventListener("click", function (e) {
-      var d = sm.parentNode, a = d.querySelector(".ans");
+      var d = sm.parentNode, a = d.querySelector(":scope > .ans, :scope > .in");
       if (reduceMotion || !a.animate) return;
       e.preventDefault();
       if (d._anim) { d._anim.cancel(); d._done(); }   // 動いている途中なら、その場で終わらせる
@@ -399,11 +426,15 @@ __TREE__
       var shut = { height: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 };
       var opening = !d.open;
       if (opening) d.open = true;
-      var full = { height: a.offsetHeight + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
+      var h = a.offsetHeight;
+      var full = { height: h + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
+      var ms = Math.min(520, 300 + h / 8);         // 中身が多いほど少しゆっくり
+      a.style.overflow = "hidden";
       d._anim = a.animate(opening ? [shut, full] : [full, shut],
-        { duration: opening ? 340 : 240, easing: "cubic-bezier(.25, .8, .25, 1)" });
+        { duration: opening ? ms : ms * 0.7, easing: "cubic-bezier(.25, .8, .25, 1)" });
       d._done = function () {
         d._anim = null;
+        a.style.overflow = "";
         if (!opening) d.open = false;
       };
       d._anim.onfinish = function () { if (d._anim) d._done(); };
@@ -641,7 +672,7 @@ __TREE__
 def build_web():
     root, lessons = load_web()
     les = "\n".join(f'    <button data-l="{html.escape(l)}">{html.escape(l)}</button>' for l in lessons)
-    (BASE / "toc.html").write_text(WEB_HTML.replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les),
+    (BASE / "toc.html").write_text(with_version(WEB_HTML.replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les)),
                                    encoding="utf-8")
     n = sum(web_count(x) for x in root)
     print(f"web確認問題: {n}問 → toc.html")
@@ -688,7 +719,7 @@ def main():
     toc = ('<ul class="toc">\n'
            f'  <li><a data-fresh href="toc.html">web確認問題<span>{nweb}問</span></a></li>\n'
            '</ul>\n')
-    (BASE / "index.html").write_text(INDEX.replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items)), encoding="utf-8")
+    (BASE / "index.html").write_text(with_version(INDEX.replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items))), encoding="utf-8")
     (BASE / "counts.json").write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
     print("ok")
 
