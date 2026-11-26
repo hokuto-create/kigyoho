@@ -428,7 +428,7 @@ __TREE__
       if (opening) d.open = true;
       var h = a.offsetHeight;
       var full = { height: h + "px", paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
-      var ms = Math.min(520, 300 + h / 8);         // 中身が多いほど少しゆっくり
+      var ms = Math.min(750, 460 + h / 5);         // 中身が多いほど少しゆっくり
       a.style.overflow = "hidden";
       d._anim = a.animate(opening ? [shut, full] : [full, shut],
         { duration: opening ? ms : ms * 0.7, easing: "cubic-bezier(.25, .8, .25, 1)" });
