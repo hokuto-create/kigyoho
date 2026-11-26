@@ -402,7 +402,7 @@ WEB_HTML = """<!DOCTYPE html>
     <span class="lb">絞り込み</span>
     <span class="sel"><select id="fMode" aria-label="絞り込み">
       <option value="all">すべて</option><option value="today">今日の復習</option>
-      <option value="x1">×1つ以上</option><option value="x2">×2つ以上</option><option value="x3">×3つ</option>
+      <option value="x1">×1つ以上</option><option value="x2">×2つ以上</option><option value="x3">×3つ以上</option>
       <option value="old">最終復習が…</option>
     </select></span>
     <span id="perWrap" class="perw" hidden>
