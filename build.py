@@ -304,14 +304,19 @@ WEB_HTML = """<!DOCTYPE html>
   .sec [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
   .sec [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
   .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
-  .bar a, .bar button, .bar .oldbtn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
+  .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
     border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
-  .bar .oldbtn { display: inline-flex; align-items: center; gap: 2px; padding: 4px 10px 4px 14px; }
-  .oldbtn select { font: inherit; font-weight: 700; color: inherit; background: rgba(47, 74, 109, .08);
-    border: 0; border-radius: 6px; padding: 4px 6px; margin: 0 2px; cursor: pointer; }
-  .filter .oldbtn.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
-  .oldbtn.on select { background: rgba(255, 255, 255, .18); }
-  .oldbtn select option { color: #222; }
+  /* ドロップダウン（絞り込み・回・期間） */
+  .sel { position: relative; display: inline-block; }
+  .sel select { -webkit-appearance: none; appearance: none; font: inherit; font-size: 15px; font-weight: 700;
+    color: #2f4a6d; background: #fff; border: 1px solid #c8ced6; border-radius: 10px;
+    padding: 8px 32px 8px 14px; cursor: pointer; }
+  .sel::after { content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: #8a97a8; pointer-events: none; font-size: 13px; }
+  .sel.on select { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
+  .sel.on::after { color: #c9d4e2; }
+  .perw { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: #2f4a6d; }
+  .perw[hidden] { display: none; }
   summary { list-style: none; cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
   .hd { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; color: #2f4a6d; }
@@ -354,8 +359,8 @@ WEB_HTML = """<!DOCTYPE html>
   .ans { box-sizing: border-box; overflow: hidden; }
   .in { box-sizing: border-box; display: flow-root; }
   .filter { align-items: center; margin-top: -6px; }
-  .filter .lb { font-size: 13px; color: #666; }
-  .filter button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
+  .filter .lb { font-size: 13px; color: #666; min-width: 4.5em; }
+
   #cnt { font-size: 13px; color: #666; }
   #none { color: #888; text-align: center; }
   .hide { display: none !important; }
@@ -367,7 +372,7 @@ WEB_HTML = """<!DOCTYPE html>
   .syncbox .sub { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.6; }
   #syncNow { margin-top: 8px; }
   .ck { display: flex; gap: 4px; flex: none; }
-  .filter.les { margin-top: -8px; }
+
   .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
     font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
   .ck i.x { color: #c0392b; border-color: #c0392b; }
@@ -393,22 +398,24 @@ WEB_HTML = """<!DOCTYPE html>
   </div>
   <div class="bar filter">
     <span class="lb">絞り込み</span>
-    <button data-m="all">すべて</button>
-    <button data-m="today">今日の復習</button>
-    <button data-m="x1">×1つ以上</button>
-    <button data-m="x2">×2つ以上</button>
-    <button data-m="x3">×3つ</button>
-    <label class="oldbtn" data-m="old">最終復習が
-      <select id="oldPer" aria-label="期間">
+    <span class="sel"><select id="fMode" aria-label="絞り込み">
+      <option value="all">すべて</option><option value="today">今日の復習</option>
+      <option value="x1">×1つ以上</option><option value="x2">×2つ以上</option><option value="x3">×3つ</option>
+      <option value="old">最終復習が…</option>
+    </select></span>
+    <span id="perWrap" class="perw" hidden>
+      <span class="sel"><select id="oldPer" aria-label="期間">
         <option value="d3">3日</option><option value="d7">1週間</option><option value="d14">2週間</option>
         <option value="m1" selected>1ヶ月</option><option value="m2">2ヶ月</option><option value="m3">3ヶ月</option>
-      </select>以上前</label>
-    <span id="cnt"></span>
+      </select></span>以上前</span>
   </div>
-  <div class="bar filter les">
+  <div class="bar filter">
     <span class="lb">回</span>
-    <button data-l="">全回</button>
+    <span class="sel"><select id="fLes" aria-label="回">
+      <option value="">全回</option>
 __LESSONS__
+    </select></span>
+    <span id="cnt"></span>
   </div>
   <p id="syncStatus" hidden></p>
   <div id="tree">
@@ -675,6 +682,7 @@ __TREE__
   sync();
   // 絞り込み：印（すべて／今日の復習／×の数）と回。該当する問題を含む見出しは開く（問題そのものは開かない）
   var FKEY = "kigyoho-web-filter", fm = "all", fl = "", per = document.getElementById("oldPer");
+  var fMode = document.getElementById("fMode"), fLes = document.getElementById("fLes");
   function hit(q) {
     if (fl && q.dataset.l !== fl) return false;
     if (fm === "all") return true;
@@ -700,23 +708,21 @@ __TREE__
     cnt = 0;
     var on = fm !== "all" || fl !== "";
     var any = walk(document.getElementById("tree"), on);
-    document.querySelectorAll(".filter [data-m]").forEach(function (b) { b.classList.toggle("on", b.dataset.m === fm); });
-    document.querySelectorAll(".filter [data-l]").forEach(function (b) { b.classList.toggle("on", b.dataset.l === fl); });
+    fMode.value = fm; fLes.value = fl;
+    fMode.parentNode.classList.toggle("on", fm !== "all");
+    fLes.parentNode.classList.toggle("on", fl !== "");
+    document.getElementById("perWrap").hidden = fm !== "old";
     document.getElementById("cnt").textContent = on ? cnt + "問" : "";
     document.getElementById("none").hidden = any;
     try { localStorage.setItem(FKEY, JSON.stringify({ m: fm, l: fl, p: per.value })); } catch (e) {}
   }
-  document.querySelectorAll(".filter [data-m]").forEach(function (b) {
-    b.onclick = function () { fm = b.dataset.m; applyFilter(); };
-  });
-  per.onchange = function () { fm = "old"; applyFilter(); };   // 期間を選んだら、その期間で絞り込む
-  document.querySelectorAll(".filter [data-l]").forEach(function (b) {
-    b.onclick = function () { fl = b.dataset.l; applyFilter(); };
-  });
+  fMode.onchange = function () { fm = fMode.value; applyFilter(); };
+  fLes.onchange = function () { fl = fLes.value; applyFilter(); };
+  per.onchange = function () { applyFilter(); };
   try {
     var f0 = JSON.parse(localStorage.getItem(FKEY)) || {};
-    if (document.querySelector('.filter [data-m="' + f0.m + '"]')) fm = f0.m;
-    if (document.querySelector('.filter [data-l="' + f0.l + '"]')) fl = f0.l;
+    if (fMode.querySelector('option[value="' + f0.m + '"]')) fm = f0.m;
+    if (f0.l === "" || fLes.querySelector('option[value="' + f0.l + '"]')) fl = f0.l || "";
     if (per.querySelector('option[value="' + f0.p + '"]')) per.value = f0.p;
   } catch (e) {}
   applyFilter();
@@ -734,7 +740,7 @@ __TREE__
 
 def build_web():
     root, lessons = load_web()
-    les = "\n".join(f'    <button data-l="{html.escape(l)}">{html.escape(l)}</button>' for l in lessons)
+    les = "\n".join(f'      <option value="{html.escape(l)}">{html.escape(l)}</option>' for l in lessons)
     (BASE / "toc.html").write_text(with_version(WEB_HTML.replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les)),
                                    encoding="utf-8")
     n = sum(web_count(x) for x in root)
