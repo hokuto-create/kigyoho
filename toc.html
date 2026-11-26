@@ -60,8 +60,14 @@
   .sec [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
   .sec [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
   .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
-  .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
+  .bar a, .bar button, .bar .oldbtn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
     border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
+  .bar .oldbtn { display: inline-flex; align-items: center; gap: 2px; padding: 4px 10px 4px 14px; }
+  .oldbtn select { font: inherit; font-weight: 700; color: inherit; background: rgba(47, 74, 109, .08);
+    border: 0; border-radius: 6px; padding: 4px 6px; margin: 0 2px; cursor: pointer; }
+  .filter .oldbtn.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
+  .oldbtn.on select { background: rgba(255, 255, 255, .18); }
+  .oldbtn select option { color: #222; }
   summary { list-style: none; cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
   .hd { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; color: #2f4a6d; }
@@ -139,7 +145,11 @@
     <button data-m="x1">×1つ以上</button>
     <button data-m="x2">×2つ以上</button>
     <button data-m="x3">×3つ</button>
-    <button data-m="old">最終復習が1ヶ月以上前</button>
+    <label class="oldbtn" data-m="old">最終復習が
+      <select id="oldPer" aria-label="期間">
+        <option value="d3">3日</option><option value="d7">1週間</option><option value="d14">2週間</option>
+        <option value="m1" selected>1ヶ月</option><option value="m2">2ヶ月</option><option value="m3">3ヶ月</option>
+      </select>以上前</label>
     <span id="cnt"></span>
   </div>
   <div class="bar filter les">
@@ -255,8 +265,11 @@
   }
   function today() { return dayOf(new Date()); }
   function addDays(s, n) { var p = s.split("-"); return dayOf(new Date(+p[0], +p[1] - 1, +p[2] + n)); }
-  function monthAgo() {           // 1ヶ月前の日（3/31 の1ヶ月前は 2/28 のように月末に揃える）
-    var t = new Date(), d = new Date(t.getFullYear(), t.getMonth() - 1, 1);
+  function cutoff(per) {          // 期間（d14＝14日、m1＝1ヶ月）前の日
+    return per.charAt(0) === "d" ? addDays(today(), -(+per.slice(1))) : monthsAgo(+per.slice(1));
+  }
+  function monthsAgo(n) {         // nヶ月前の日（3/31 の1ヶ月前は 2/28 のように月末に揃える）
+    var t = new Date(), d = new Date(t.getFullYear(), t.getMonth() - n, 1);
     d.setDate(Math.min(t.getDate(), new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
     return dayOf(d);
   }
@@ -405,13 +418,13 @@
 
   sync();
   // 絞り込み：印（すべて／今日の復習／×の数）と回。該当する問題を含む見出しは開く（問題そのものは開かない）
-  var FKEY = "kigyoho-web-filter", fm = "all", fl = "";
+  var FKEY = "kigyoho-web-filter", fm = "all", fl = "", per = document.getElementById("oldPer");
   function hit(q) {
     if (fl && q.dataset.l !== fl) return false;
     if (fm === "all") return true;
     var m = marks[q.querySelector(".ck").dataset.id];
     if (fm === "today") { var L = ladder(m); return L.due !== null && L.due <= today(); }
-    if (fm === "old") { var ld = lastDay(m); return ld !== "" && ld <= monthAgo(); }
+    if (fm === "old") { var ld = lastDay(m); return ld !== "" && ld <= cutoff(per.value); }
     var nx = m ? m.v.filter(function (c) { return c === "x"; }).length : 0;
     return nx >= +fm.slice(1);
   }
@@ -435,11 +448,12 @@
     document.querySelectorAll(".filter [data-l]").forEach(function (b) { b.classList.toggle("on", b.dataset.l === fl); });
     document.getElementById("cnt").textContent = on ? cnt + "問" : "";
     document.getElementById("none").hidden = any;
-    try { localStorage.setItem(FKEY, JSON.stringify({ m: fm, l: fl })); } catch (e) {}
+    try { localStorage.setItem(FKEY, JSON.stringify({ m: fm, l: fl, p: per.value })); } catch (e) {}
   }
   document.querySelectorAll(".filter [data-m]").forEach(function (b) {
     b.onclick = function () { fm = b.dataset.m; applyFilter(); };
   });
+  per.onchange = function () { fm = "old"; applyFilter(); };   // 期間を選んだら、その期間で絞り込む
   document.querySelectorAll(".filter [data-l]").forEach(function (b) {
     b.onclick = function () { fl = b.dataset.l; applyFilter(); };
   });
@@ -447,6 +461,7 @@
     var f0 = JSON.parse(localStorage.getItem(FKEY)) || {};
     if (document.querySelector('.filter [data-m="' + f0.m + '"]')) fm = f0.m;
     if (document.querySelector('.filter [data-l="' + f0.l + '"]')) fl = f0.l;
+    if (per.querySelector('option[value="' + f0.p + '"]')) per.value = f0.p;
   } catch (e) {}
   applyFilter();
   document.querySelectorAll("a[data-fresh]").forEach(function (a) {
@@ -457,7 +472,7 @@
   });
 </script>
 <script>
-  var APP_VERSION = "b1c3d3b93b6b";
+  var APP_VERSION = "b7a668224018";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
