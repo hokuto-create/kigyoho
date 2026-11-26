@@ -13,7 +13,11 @@
   try {
     document.documentElement.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a";
     document.documentElement.dataset.qf = localStorage.getItem("kigyoho-font-q") || "a";
-  } catch (e) { document.documentElement.dataset.tf = document.documentElement.dataset.qf = "a"; }
+    document.documentElement.dataset.sd = localStorage.getItem("kigyoho-show-date") || "on";
+  } catch (e) {
+    document.documentElement.dataset.tf = document.documentElement.dataset.qf = "a";
+    document.documentElement.dataset.sd = "on";
+  }
 </script>
 <style>
   body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
@@ -111,6 +115,12 @@
   .ck i.o { color: #1e7d4f; border-color: #1e7d4f; }
   .ck i.x::after { content: "×"; }
   .ck i.o::after { content: "○"; }
+  /* ○を付けた日（設定で表示・非表示） */
+  .ck i { position: relative; }
+  [data-sd=on] .ck i.o[data-d]::before { content: attr(data-d); position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%); margin-top: 2px; font-size: 10px; font-weight: 400; line-height: 1;
+    color: #1e7d4f; white-space: nowrap; font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  [data-sd=on] .ck.hasd { margin-bottom: 13px; }
 </style>
 </head>
 <body>
@@ -129,6 +139,7 @@
     <button data-m="x1">×1つ以上</button>
     <button data-m="x2">×2つ以上</button>
     <button data-m="x3">×3つ</button>
+    <button data-m="old">最終復習が1ヶ月以上前</button>
     <span id="cnt"></span>
   </div>
   <div class="bar filter les">
@@ -151,6 +162,8 @@
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
     <div class="sec" data-k="kigyoho-font-q" data-attr="qf"><div class="lb">問題の文字</div>
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
+    <div class="sec" data-k="kigyoho-show-date" data-attr="sd"><div class="lb">○を付けた日</div>
+      <button data-f="on">表示する</button><button data-f="off">表示しない</button></div>
     <div class="sec"><div class="lb">□の記録の同期</div>
       <div class="syncbox"><div class="st" id="syncSt">確認中…</div><div class="sub" id="syncSub"></div></div>
       <button id="syncNow">今すぐ同期</button></div>
@@ -242,6 +255,16 @@
   }
   function today() { return dayOf(new Date()); }
   function addDays(s, n) { var p = s.split("-"); return dayOf(new Date(+p[0], +p[1] - 1, +p[2] + n)); }
+  function monthAgo() {           // 1ヶ月前の日（3/31 の1ヶ月前は 2/28 のように月末に揃える）
+    var t = new Date(), d = new Date(t.getFullYear(), t.getMonth() - 1, 1);
+    d.setDate(Math.min(t.getDate(), new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+    return dayOf(d);
+  }
+  function lastDay(m) {           // 最後に印を付けた日（印がなければ ""）
+    var last = "";
+    if (m) m.v.forEach(function (c, i) { if (c && (m.d[i] || "") > last) last = m.d[i]; });
+    return last;
+  }
   // 復習ラダー（DayFlow と同じ）：□の印を左から順に見て段階を決める
   //   初回○→◎（復習不要）、初回×→✖。×はどの段階からでも✖に戻る。○で1段進む（✖→△→○→◎）
   //   次の復習日：✖＝翌日、△＝3日後、○＝1週間後（最後に印を付けた日から）
@@ -281,7 +304,14 @@
     var nb = Math.max(3, v.length + (v.length >= 3 && L.stage >= 1 && L.stage <= 3 ? 1 : 0));
     while (ck.children.length < nb) ck.appendChild(document.createElement("i"));
     while (ck.children.length > nb) ck.removeChild(ck.lastChild);
-    Array.prototype.forEach.call(ck.children, function (b, i) { b.className = (m && m.v[i]) || ""; });
+    var hasd = false;
+    Array.prototype.forEach.call(ck.children, function (b, i) {
+      b.className = (m && m.v[i]) || "";
+      var dd = b.className === "o" && m.d[i];
+      if (dd) { var q = dd.split("-"); b.dataset.d = (+q[1]) + "/" + (+q[2]); hasd = true; }
+      else delete b.dataset.d;
+    });
+    ck.classList.toggle("hasd", hasd);
     var lad = ck.parentNode.querySelector(".lad");
     if (!L.n) { lad.textContent = ""; lad.className = "lad"; }
     else if (L.stage === 4) { lad.textContent = "◎ 復習不要"; lad.className = "lad s4"; }
@@ -381,6 +411,7 @@
     if (fm === "all") return true;
     var m = marks[q.querySelector(".ck").dataset.id];
     if (fm === "today") { var L = ladder(m); return L.due !== null && L.due <= today(); }
+    if (fm === "old") { var ld = lastDay(m); return ld !== "" && ld <= monthAgo(); }
     var nx = m ? m.v.filter(function (c) { return c === "x"; }).length : 0;
     return nx >= +fm.slice(1);
   }
@@ -426,7 +457,7 @@
   });
 </script>
 <script>
-  var APP_VERSION = "b5d32593712d";
+  var APP_VERSION = "b1c3d3b93b6b";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
