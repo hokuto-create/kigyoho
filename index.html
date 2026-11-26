@@ -58,5 +58,19 @@
   refreshCounts();
   window.addEventListener("pageshow", refreshCounts);
 </script>
+<script>
+  var APP_VERSION = "a02dcd38422e";
+  async function checkUpdate() {
+    try {
+      var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      var m = (await r.text()).match(/APP_VERSION = "([0-9a-f]+)"/);
+      if (m && m[1] !== APP_VERSION && location.search.indexOf("v=" + m[1]) < 0)
+        location.replace(location.pathname + "?v=" + m[1] + location.hash);
+    } catch (e) {}
+  }
+  checkUpdate();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) checkUpdate(); });
+</script>
 </body>
 </html>
