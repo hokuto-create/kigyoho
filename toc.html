@@ -670,6 +670,16 @@
     if (f0.l === "" || fLes.querySelector('option[value="' + f0.l + '"]')) fl = f0.l || "";
     if (per.querySelector('option[value="' + f0.p + '"]')) per.value = f0.p;
   } catch (e) {}
+  // 入口ページのカードから開いたとき（#les=回の名前）：回のカード→その回だけ（絞り込みは「すべて」）、
+  // web確認問題のカード（#les= が空）→全回（絞り込みは前のまま）。# は読んだら消す（開き直しで絞り込みが戻らないように）
+  var hl = location.hash.match(/^#les=(.*)$/);
+  if (hl) {
+    var want = null;
+    try { want = decodeURIComponent(hl[1]); } catch (e) {}
+    if (want === "") fl = "";
+    else if (want !== null && Array.prototype.some.call(fLes.options, function (o) { return o.value === want; })) { fl = want; fm = "all"; }
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  }
   applyFilter();
   document.querySelectorAll("a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
@@ -679,7 +689,7 @@
   });
 </script>
 <script>
-  var APP_VERSION = "df3a70b7062e";
+  var APP_VERSION = "714b7cede430";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });

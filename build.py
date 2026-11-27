@@ -185,9 +185,13 @@ __BASE__
   .lh small { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--mute); letter-spacing: .02em; }
   ul.les { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   @media (min-width: 560px) { ul.les { grid-template-columns: 1fr 1fr; } }
-  .les a { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; text-decoration: none;
-    color: var(--ink); background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  /* 回のカード：左（数字・回の名前）を押すとその回の web確認問題、右端の PDF を押すとその回の PDF */
+  .les li { display: flex; align-items: stretch; border-radius: 14px; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .les a { text-decoration: none; color: var(--ink); }
   .les a:active { background: var(--tint); }
+  .lm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 0 14px 16px; }
+  .lpw { flex: none; display: flex; align-items: center; padding: 0 16px 0 12px; }   /* PDF はカードの高さいっぱいが押せる範囲 */
   .ln { flex: none; width: 46px; padding-right: 12px; border-right: 1px solid var(--line); text-align: center;
     font-family: var(--serif-en); font-size: 32px; font-weight: 600; line-height: 1; color: var(--gold); }
   .lt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -206,7 +210,7 @@ __BASE__
   </div>
 </header>
 <main class="wrap">
-__TOC__  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと PDF が開きます</small></h2>
+__TOC__  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと web確認問題が開きます</small></h2>
   <ul class="les">
 __ITEMS__
   </ul>
@@ -217,11 +221,13 @@ __ITEMS__
     var d = new Date(), W = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     document.getElementById("date").textContent = d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate() + " " + W[d.getDay()];
   })();
-  // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
+  // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF・web確認問題を取りに行く。
+  // web確認問題へは #les=回の名前 を付ける（回のカード＝その回だけ、web確認問題のカード＝#les= で全回）
   document.querySelectorAll("a[data-pdf], a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
-      location.href = a.getAttribute("href") + "?v=" + Date.now();
+      var les = a.getAttribute("data-les");
+      location.href = a.getAttribute("href") + "?v=" + Date.now() + (les === null ? "" : "#les=" + encodeURIComponent(les));
     });
   });
   // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json から表示し直す
@@ -229,9 +235,9 @@ __ITEMS__
     fetch("counts.json?v=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (counts) {
-        document.querySelectorAll("a[data-pdf]").forEach(function (a) {
-          var name = a.getAttribute("data-name");
-          if (name in counts) a.querySelector(".n").textContent = counts[name] + "問";
+        document.querySelectorAll("li[data-name]").forEach(function (li) {
+          var name = li.getAttribute("data-name");
+          if (name in counts) li.querySelector(".n").textContent = counts[name] + "問";
         });
       })
       .catch(function () {});
@@ -972,6 +978,16 @@ __TREE__
     if (f0.l === "" || fLes.querySelector('option[value="' + f0.l + '"]')) fl = f0.l || "";
     if (per.querySelector('option[value="' + f0.p + '"]')) per.value = f0.p;
   } catch (e) {}
+  // 入口ページのカードから開いたとき（#les=回の名前）：回のカード→その回だけ（絞り込みは「すべて」）、
+  // web確認問題のカード（#les= が空）→全回（絞り込みは前のまま）。# は読んだら消す（開き直しで絞り込みが戻らないように）
+  var hl = location.hash.match(/^#les=(.*)$/);
+  if (hl) {
+    var want = null;
+    try { want = decodeURIComponent(hl[1]); } catch (e) {}
+    if (want === "") fl = "";
+    else if (want !== null && Array.prototype.some.call(fLes.options, function (o) { return o.value === want; })) { fl = want; fm = "all"; }
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  }
   applyFilter();
   document.querySelectorAll("a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
@@ -1030,14 +1046,16 @@ def main():
         nq = sum(1 for r in data if r[0] not in ("h1", "h2"))
         num = re.search(r"\d+", name)  # 「第3回」→ 03（入口ページの金の数字）
         ln = f"{int(num.group()):02d}" if num else "·"
-        items.append(f'    <li><a data-pdf data-name="{html.escape(name)}" href="pdf/{html.escape(fname)}">'
+        # カードの左＝その回だけに絞り込んだ web確認問題、右端の PDF＝その回の PDF
+        items.append(f'    <li data-name="{html.escape(name)}"><a class="lm" data-fresh data-les="{html.escape(name)}" href="toc.html">'
                      f'<span class="ln">{ln}</span><span class="lt"><span class="lname disp">{html.escape(name)}</span>'
-                     f'<span class="n">{nq}問</span></span><span class="lp">PDF</span></a></li>')
+                     f'<span class="n">{nq}問</span></span></a>'
+                     f'<a class="lpw" data-pdf href="pdf/{html.escape(fname)}" aria-label="{html.escape(name)}の PDF"><span class="lp">PDF</span></a></li>')
         counts[name] = nq
         print(f"{name}: {nq}問 → pdf/{fname}")
     tmp.unlink()
     nweb = build_web()
-    toc = ('  <a class="feat" data-fresh href="toc.html"><span class="fe">Web Review</span>'
+    toc = ('  <a class="feat" data-fresh data-les="" href="toc.html"><span class="fe">Web Review</span>'
            '<span class="ft disp">企業法 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span>'
            f'<span class="fn"><b>{nweb}</b>問</span></a>\n')
     page = (INDEX.replace("__FONTS__", FONTS).replace("__BASE__", BASE_CSS)
