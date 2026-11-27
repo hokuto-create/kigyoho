@@ -553,10 +553,25 @@
     }
     clearTimeout(timer); timer = setTimeout(sync, 1500);
   }
+  // ○×を付けたら、画面を動かして次の問題を画面の上から3割ほど（真ん中より少し上）に持ってくる。
+  // 次の問題＝いま画面に出ている問題のうち、すぐ後のもの（閉じている編・章・節の中と、絞り込みで隠れた問題は飛ばす）
+  function nextQ(q) {
+    var all = document.querySelectorAll("#tree details.q"), i = Array.prototype.indexOf.call(all, q);
+    for (var k = i + 1; k < all.length; k++) if (all[k].getClientRects().length) return all[k];
+    return null;
+  }
+  function goNext(q) {
+    var n = nextQ(q);
+    if (!n) return;
+    var top = window.scrollY + n.getBoundingClientRect().top - window.innerHeight * 0.3;
+    if (Math.abs(top - window.scrollY) < 8) return;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? "auto" : "smooth" });
+  }
   document.querySelectorAll("details.q .judge button").forEach(function (b) {
     b.addEventListener("click", function () {
       var q = b.closest("details.q");
       judge(q, b.dataset.r);                       // 判定しても答えは開いたまま
+      if (b.dataset.r) setTimeout(function () { goNext(q); }, 250);   // 印が入ったのを見てから動かす（「最後の印を消す」では動かない）
     });
   });
 
@@ -693,7 +708,7 @@
   });
 </script>
 <script>
-  var APP_VERSION = "e979e3dcf120";
+  var APP_VERSION = "a56aaf375e84";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
