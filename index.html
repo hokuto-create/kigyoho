@@ -75,9 +75,13 @@
   .lh small { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--mute); letter-spacing: .02em; }
   ul.les { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   @media (min-width: 560px) { ul.les { grid-template-columns: 1fr 1fr; } }
-  .les a { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; text-decoration: none;
-    color: var(--ink); background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  /* 回のカード：左（数字・回の名前）を押すとその回の web確認問題、右端の PDF を押すとその回の PDF */
+  .les li { display: flex; align-items: stretch; border-radius: 14px; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .les a { text-decoration: none; color: var(--ink); }
   .les a:active { background: var(--tint); }
+  .lm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 0 14px 16px; }
+  .lpw { flex: none; display: flex; align-items: center; padding: 0 16px 0 12px; }   /* PDF はカードの高さいっぱいが押せる範囲 */
   .ln { flex: none; width: 46px; padding-right: 12px; border-right: 1px solid var(--line); text-align: center;
     font-family: var(--serif-en); font-size: 32px; font-weight: 600; line-height: 1; color: var(--gold); }
   .lt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -96,12 +100,12 @@
   </div>
 </header>
 <main class="wrap">
-  <a class="feat" data-fresh href="toc.html"><span class="fe">Web Review</span><span class="ft disp">企業法 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span><span class="fn"><b>66</b>問</span></a>
-  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと PDF が開きます</small></h2>
+  <a class="feat" data-fresh data-les="" href="toc.html"><span class="fe">Web Review</span><span class="ft disp">企業法 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span><span class="fn"><b>66</b>問</span></a>
+  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと web確認問題が開きます</small></h2>
   <ul class="les">
-    <li><a data-pdf data-name="第1回" href="pdf/企業法_第1回.pdf"><span class="ln">01</span><span class="lt"><span class="lname disp">第1回</span><span class="n">8問</span></span><span class="lp">PDF</span></a></li>
-    <li><a data-pdf data-name="第2回" href="pdf/企業法_第2回.pdf"><span class="ln">02</span><span class="lt"><span class="lname disp">第2回</span><span class="n">10問</span></span><span class="lp">PDF</span></a></li>
-    <li><a data-pdf data-name="第3回" href="pdf/企業法_第3回.pdf"><span class="ln">03</span><span class="lt"><span class="lname disp">第3回</span><span class="n">48問</span></span><span class="lp">PDF</span></a></li>
+    <li data-name="第1回"><a class="lm" data-fresh data-les="第1回" href="toc.html"><span class="ln">01</span><span class="lt"><span class="lname disp">第1回</span><span class="n">8問</span></span></a><a class="lpw" data-pdf href="pdf/企業法_第1回.pdf" aria-label="第1回の PDF"><span class="lp">PDF</span></a></li>
+    <li data-name="第2回"><a class="lm" data-fresh data-les="第2回" href="toc.html"><span class="ln">02</span><span class="lt"><span class="lname disp">第2回</span><span class="n">10問</span></span></a><a class="lpw" data-pdf href="pdf/企業法_第2回.pdf" aria-label="第2回の PDF"><span class="lp">PDF</span></a></li>
+    <li data-name="第3回"><a class="lm" data-fresh data-les="第3回" href="toc.html"><span class="ln">03</span><span class="lt"><span class="lname disp">第3回</span><span class="n">48問</span></span></a><a class="lpw" data-pdf href="pdf/企業法_第3回.pdf" aria-label="第3回の PDF"><span class="lp">PDF</span></a></li>
   </ul>
 </main>
 <script>
@@ -110,11 +114,13 @@
     var d = new Date(), W = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     document.getElementById("date").textContent = d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate() + " " + W[d.getDay()];
   })();
-  // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
+  // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF・web確認問題を取りに行く。
+  // web確認問題へは #les=回の名前 を付ける（回のカード＝その回だけ、web確認問題のカード＝#les= で全回）
   document.querySelectorAll("a[data-pdf], a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
-      location.href = a.getAttribute("href") + "?v=" + Date.now();
+      var les = a.getAttribute("data-les");
+      location.href = a.getAttribute("href") + "?v=" + Date.now() + (les === null ? "" : "#les=" + encodeURIComponent(les));
     });
   });
   // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json から表示し直す
@@ -122,9 +128,9 @@
     fetch("counts.json?v=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (counts) {
-        document.querySelectorAll("a[data-pdf]").forEach(function (a) {
-          var name = a.getAttribute("data-name");
-          if (name in counts) a.querySelector(".n").textContent = counts[name] + "問";
+        document.querySelectorAll("li[data-name]").forEach(function (li) {
+          var name = li.getAttribute("data-name");
+          if (name in counts) li.querySelector(".n").textContent = counts[name] + "問";
         });
       })
       .catch(function () {});
@@ -133,7 +139,7 @@
   window.addEventListener("pageshow", refreshCounts);
 </script>
 <script>
-  var APP_VERSION = "14ea65933688";
+  var APP_VERSION = "ccff902e374b";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
