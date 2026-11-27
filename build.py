@@ -101,39 +101,122 @@ html {{ counter-reset: page {start}; }}</style></head><body>
 {''.join(bodies)}</table></body></html>"""
 
 
+# ---------- 見た目の共通部分（入口ページと web確認問題） ----------
+# 紺の表紙・生成りの紙・金のアクセント。本文は大きめ・行間広め・コントラスト 4.5:1 以上（勉強で読みやすいように）
+FONTS = """<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Klee+One:wght@400;600&family=Zen+Old+Mincho:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap">"""
+
+BASE_CSS = """  :root {
+    --paper: #f5f1e8; --card: #fffdf9; --tint: #fbf6ef;
+    --ink: #1d2943; --ink2: #4f576b; --mute: #6b7080;
+    --line: #e9e2d4; --line2: #d9cebb;
+    --navy: #1b2644; --cream: #f6efdf; --gold: #a37d45; --gold-d: #7d5f30; --gold-l: #dcc08a;
+    --red: #b3332a; --red-d: #8e1f17; --green: #2c7a52; --amber: #8a5d00; --blue: #2a5d9c;
+    --sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+    --serif-en: "Cormorant Garamond", "Times New Roman", serif;
+    --shadow: 0 1px 2px rgba(27, 38, 68, .05), 0 8px 24px rgba(27, 38, 68, .06);
+  }
+  html { -webkit-text-size-adjust: 100%; font-variant-numeric: lining-nums; }   /* 英字の明朝の数字も、読みやすい揃った形に */
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-tap-highlight-color: transparent; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; box-sizing: border-box; }
+  /* 表紙（紺の帯。右上に § の透かし、下端に金の細線） */
+  .cover { position: relative; overflow: hidden; color: var(--cream);
+    background: radial-gradient(120% 140% at 100% 0%, rgba(62, 86, 145, .55) 0%, rgba(62, 86, 145, 0) 60%),
+      linear-gradient(165deg, #22305a 0%, #1a2546 55%, #131b35 100%); }
+  .cover::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    background: linear-gradient(90deg, rgba(220, 192, 138, 0), rgba(220, 192, 138, .8) 50%, rgba(220, 192, 138, 0)); }
+  .cover::after { content: "§"; position: absolute; right: -12px; top: -56px; font-family: var(--serif-en); font-size: 250px;
+    line-height: 1; color: rgba(220, 192, 138, .08); pointer-events: none; }
+  .cover .wrap { position: relative; z-index: 1; }
+  .eb { font-family: var(--serif-en); font-style: italic; font-weight: 500; letter-spacing: .14em; color: var(--gold-l); }
+  /* タイトルの文字（web確認問題の設定画面で選ぶ。入口ページと共通）：s＝標準、a＝上品な明朝、c＝手書き風、d＝クラシック明朝 */
+  [data-tf=a] .disp { font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif; }
+  [data-tf=c] .disp { font-family: "Klee One", serif; font-weight: 600; }
+  [data-tf=d] .disp { font-family: "Zen Old Mincho", "Hiragino Mincho ProN", serif; }"""
+
+
 INDEX = """<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
+<meta name="theme-color" content="#1b2644">
 <title>企業法 一問一答</title>
+__FONTS__
+<script>
+  // タイトルの文字（web確認問題の設定画面で選ぶ。この端末に保存）を、描画の前に反映する
+  try { document.documentElement.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a"; }
+  catch (e) { document.documentElement.dataset.tf = "a"; }
+</script>
 <style>
-  body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
-    margin: 0; padding: 24px 16px; background: #f4f6f9; color: #222; }
-  h1 { font-size: 22px; color: #2f4a6d; margin: 0 0 4px; }
-  p.sub { font-size: 13px; color: #777; margin: 0 0 20px; }
-  ul { list-style: none; padding: 0; margin: 0 auto; max-width: 520px; display: grid; gap: 10px; }
-  a { display: flex; justify-content: space-between; align-items: center;
-    background: #fff; border: 1px solid #c8ced6; border-radius: 12px;
-    padding: 16px 18px; text-decoration: none; color: #2f4a6d; font-size: 18px; font-weight: 700; }
-  a:active { background: #e8edf3; }
-  a span { font-size: 13px; color: #888; font-weight: 400; }
-  .wrap { max-width: 520px; margin: 0 auto; }
-  ul.toc { margin-bottom: 20px; }
-  ul.toc a { background: #2f4a6d; border-color: #2f4a6d; color: #fff; }
-  ul.toc a span { color: #c9d4e2; }
+__BASE__
+  .wrap { max-width: 600px; }
+  .cover { padding: 22px 0 70px; }
+  .cover .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .cover .eb { font-size: 16px; }
+  .date { font-family: var(--serif-en); font-size: 15px; font-weight: 500; letter-spacing: .1em; color: rgba(246, 239, 223, .75); }
+  h1 { margin: 14px 0 8px; font-size: 36px; font-weight: 700; letter-spacing: .08em; line-height: 1.25; color: #f8f2e4; }
+  h1 span { display: inline-block; margin-left: .35em; font-size: .62em; letter-spacing: .14em; color: var(--gold-l); }
+  .lead { margin: 0; font-size: 13px; letter-spacing: .24em; color: rgba(246, 239, 223, .78); }
+  main.wrap { position: relative; margin-top: -44px; padding-bottom: 48px; }
+  /* web確認問題（表紙に少し重ねる） */
+  .feat { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 16px;
+    padding: 18px 18px 18px 24px; border-radius: 18px; text-decoration: none; color: var(--ink);
+    background: var(--card); border: 1px solid rgba(176, 138, 79, .35); overflow: hidden;
+    box-shadow: 0 2px 4px rgba(27, 38, 68, .06), 0 16px 36px rgba(27, 38, 68, .14); }
+  .feat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: linear-gradient(180deg, #e7cd94, #b38a4b); }
+  .feat .fe { grid-column: 1; font-family: var(--serif-en); font-style: italic; font-size: 15px; letter-spacing: .14em; color: var(--gold-d); }
+  .feat .ft { grid-column: 1; font-size: 23px; font-weight: 700; letter-spacing: .06em; line-height: 1.4; }
+  .feat .ft em { font-family: var(--serif-en); font-style: italic; font-weight: 500; font-size: 1.15em; letter-spacing: 0;
+    margin-right: .06em; color: var(--gold-d); }
+  .feat .fd { grid-column: 1; font-size: 13px; color: var(--ink2); margin-top: 2px; }
+  .feat .fn { grid-column: 2; grid-row: 1 / span 3; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 66px; height: 66px; border-radius: 50%; background: var(--navy); color: var(--cream); font-size: 11px;
+    box-shadow: inset 0 0 0 1px rgba(220, 192, 138, .55), inset 0 0 0 4px var(--navy), inset 0 0 0 5px rgba(220, 192, 138, .3); }
+  .feat .fn b { font-family: var(--serif-en); font-size: 26px; font-weight: 600; line-height: 1; }
+  .feat:active { transform: scale(.99); }
+  /* 授業の回 */
+  .lh { display: flex; align-items: baseline; gap: 10px; margin: 30px 2px 12px; font-size: 16px; font-weight: 700;
+    color: var(--ink); letter-spacing: .06em; }
+  .lh .eb { font-size: 16px; color: var(--gold-d); letter-spacing: .12em; }
+  .lh small { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--mute); letter-spacing: .02em; }
+  ul.les { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  @media (min-width: 560px) { ul.les { grid-template-columns: 1fr 1fr; } }
+  .les a { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; text-decoration: none;
+    color: var(--ink); background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .les a:active { background: var(--tint); }
+  .ln { flex: none; width: 46px; padding-right: 12px; border-right: 1px solid var(--line); text-align: center;
+    font-family: var(--serif-en); font-size: 32px; font-weight: 600; line-height: 1; color: var(--gold); }
+  .lt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .lname { font-size: 19px; font-weight: 700; letter-spacing: .06em; }
+  .les .n { font-size: 12.5px; color: var(--mute); }
+  .lp { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--gold-d);
+    border: 1px solid rgba(163, 125, 69, .5); border-radius: 999px; padding: 3px 9px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>企業法 一問一答</h1>
-  <p class="sub">授業の回を選ぶと PDF が開きます</p>
-</div>
-__TOC__<ul>
+<header class="cover">
+  <div class="wrap">
+    <div class="top"><span class="eb">Corporate Law</span><span class="date" id="date"></span></div>
+    <h1 class="disp">企業法<span>一問一答</span></h1>
+    <p class="lead">公認会計士試験</p>
+  </div>
+</header>
+<main class="wrap">
+__TOC__  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと PDF が開きます</small></h2>
+  <ul class="les">
 __ITEMS__
-</ul>
+  </ul>
+</main>
 <script>
+  // 今日の日付（表紙の右上）
+  (function () {
+    var d = new Date(), W = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    document.getElementById("date").textContent = d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate() + " " + W[d.getDay()];
+  })();
   // 毎回ちがう ?v= を付けて、キャッシュではなく最新の PDF を取りに行く
   document.querySelectorAll("a[data-pdf], a[data-fresh]").forEach(function (a) {
     a.addEventListener("click", function (e) {
@@ -148,7 +231,7 @@ __ITEMS__
       .then(function (counts) {
         document.querySelectorAll("a[data-pdf]").forEach(function (a) {
           var name = a.getAttribute("data-name");
-          if (name in counts) a.querySelector("span").textContent = counts[name] + "問";
+          if (name in counts) a.querySelector(".n").textContent = counts[name] + "問";
         });
       })
       .catch(function () {});
@@ -236,8 +319,13 @@ def web_nodes(nodes, lv=1):
                       '<button class="jx" data-r="x">× できなかった</button>'
                       '<button class="jundo" data-r="">最後の印を消す</button></div></div></details>')
         inner = "".join(qs) + web_nodes(n["children"], lv + 1)
+        # 「第0編　入門生の…」の「第0編」は金色にする（狭い画面では全角スペースのところで折り返す）
+        num, sp, rest = n["title"].partition("　")
+        title = f'<span class="tn">{html.escape(num)}</span>{sp}{html.escape(rest)}' if sp else html.escape(n["title"])
+        # .hm＝その編・章の◎の数、.hbar＝編の◎の割合の金の線（どちらも画面側で入れる）
+        bar = '<i class="hbar"></i>' if lv == 1 else ''
         out.append(f'<details class="h lv{lv}" data-key="h:{html.escape(n["title"])}"><summary class="hd">'
-                   f'<span class="t">{html.escape(n["title"])}</span><span class="hcnt">{web_count(n)}問</span></summary>'
+                   f'<span class="t">{title}</span><span class="hcnt"><span class="hm"></span>{web_count(n)}問</span>{bar}</summary>'
                    f'<div class="in">{inner}</div></details>')
     return "".join(out)
 
@@ -248,12 +336,11 @@ WEB_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
+<meta name="theme-color" content="#1b2644">
 <title>企業法 web確認問題</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Klee+One:wght@400;600&family=Zen+Old+Mincho:wght@400;700&family=Cormorant+Garamond:ital,wght@1,500&display=swap">
+__FONTS__
 <script>
-  // 文字の設定（タイトル・問題部分それぞれ a/c/d）を、描画の前に反映する
+  // 文字の設定（タイトル・問題部分それぞれ s/a/c/d）と○の日付の表示を、描画の前に反映する
   try {
     document.documentElement.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a";
     document.documentElement.dataset.qf = localStorage.getItem("kigyoho-font-q") || "a";
@@ -264,170 +351,263 @@ WEB_HTML = """<!DOCTYPE html>
   }
 </script>
 <style>
-  body { font-family: -apple-system, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
-    margin: 0; padding: 24px 16px 48px; background: #f4f6f9; color: #222; }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 30px; font-weight: 700; color: #2f4a6d; margin: 0 0 4px; letter-spacing: .06em; line-height: 1.3; }
-  h1 em { font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 500; font-size: 1.15em;
-    letter-spacing: 0; margin-right: .08em; }
-  h1 .eb { display: block; font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 500;
-    font-size: 15px; letter-spacing: .12em; color: #8a97a8; }
-  /* 文字の設定：s＝標準（端末のゴシック）、a＝上品な明朝、c＝手書き風、d＝クラシックな明朝 */
-  [data-tf=a] h1 { font-family: "Shippori Mincho", serif; }
-  [data-tf=c] h1 { font-family: "Klee One", serif; font-weight: 600; }
-  [data-tf=d] h1 { font-family: "Zen Old Mincho", serif; }
-  [data-qf=a] #tree { font-family: "Shippori Mincho", serif; font-weight: 500; }
-  [data-qf=c] #tree { font-family: "Klee One", serif; }
-  [data-qf=d] #tree { font-family: "Zen Old Mincho", serif; }
-  #tree .hd .t, #tree .qt, #tree b { font-weight: 700; }
-  [data-qf=c] #tree .hd .t, [data-qf=c] #tree .qt, [data-qf=c] #tree b { font-weight: 600; }
-  .wrap { position: relative; }
-  #setBtn { position: absolute; top: 0; right: 0; width: 44px; height: 44px; border-radius: 50%;
-    border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; cursor: pointer;
+__BASE__
+  body { padding-bottom: 56px; }
+  /* ---- 表紙：戻る・設定・タイトル・進み具合 ---- */
+  .cover { padding: 12px 0 18px; }
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .back { display: inline-flex; align-items: center; color: var(--cream); text-decoration: none; font-size: 14px;
+    padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(246, 239, 223, .3); background: rgba(255, 255, 255, .05); }
+  #setBtn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(246, 239, 223, .3);
+    background: rgba(255, 255, 255, .05); color: var(--cream); cursor: pointer;
     display: flex; align-items: center; justify-content: center; padding: 0; }
-  h1 { padding-right: 52px; }
-  #setting { position: fixed; inset: 0; background: rgba(20, 30, 45, .35); z-index: 10;
-    display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; }
-  #setting[hidden] { display: none; }
-  .sheet { background: #fff; border-radius: 16px; width: 100%; max-width: 520px; padding: 6px 18px 18px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, .2); }
-  .sh { display: flex; align-items: center; justify-content: space-between; font-size: 18px; font-weight: 700;
-    color: #2f4a6d; padding: 8px 0 4px; }
-  #setClose { font-size: 26px; line-height: 1; border: 0; background: none; color: #8a97a8; cursor: pointer; padding: 4px 6px; }
-  .sec { margin-top: 12px; }
-  .sec .lb { font-size: 13px; color: #666; margin-bottom: 6px; }
-  .sec button { font-size: 16px; padding: 7px 14px; border-radius: 10px; border: 1px solid #c8ced6;
-    background: #fff; color: #2f4a6d; cursor: pointer; margin: 0 6px 6px 0; }
-  .sec button.on { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
-  .sec [data-f=s] { font-weight: 700; }
-  .sec [data-f=a] { font-family: "Shippori Mincho", serif; font-weight: 700; }
-  .sec [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
-  .sec [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
-  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
-  .bar a, .bar button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px;
-    border: 1px solid #c8ced6; background: #fff; color: #2f4a6d; text-decoration: none; cursor: pointer; }
-  /* ドロップダウン（絞り込み・回・期間） */
+  h1 { font-size: 29px; font-weight: 700; color: #f8f2e4; margin: 0; letter-spacing: .06em; line-height: 1.3; }
+  h1 em { font-family: var(--serif-en); font-style: italic; font-weight: 500; font-size: 1.15em;
+    letter-spacing: 0; margin-right: .08em; color: var(--gold-l); }
+  h1 .eb { display: block; font-size: 15px; margin-bottom: 2px; }
+  .prog { margin-top: 16px; display: grid; grid-template-columns: 74px 1fr; grid-template-areas: "ring pm" "pa pa";
+    gap: 14px 14px; align-items: center; padding: 14px 14px 12px; border-radius: 16px;
+    background: rgba(255, 255, 255, .055); border: 1px solid rgba(220, 192, 138, .25); }
+  .ring { grid-area: ring; position: relative; width: 74px; height: 74px; }
+  .ring svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 6; }
+  .ring .tr { stroke: rgba(255, 255, 255, .13); }
+  .ring .fg { stroke: url(#gold); stroke-linecap: round; stroke-dasharray: 169.65; stroke-dashoffset: 169.65;
+    transition: stroke-dashoffset .9s cubic-bezier(.25, .8, .25, 1); }
+  .pct { position: absolute; inset: 0; display: grid; place-items: center;
+    font-family: var(--serif-en); font-weight: 600; font-size: 14px; color: #f8f2e4; }
+  .pct b { font-size: 27px; font-weight: 600; line-height: 1; }
+  .pm { grid-area: pm; min-width: 0; }
+  .pt { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; font-size: 13px; color: rgba(246, 239, 223, .82); }
+  .pt b { font-family: var(--serif-en); font-size: 30px; font-weight: 600; color: #f8f2e4; line-height: 1; }
+  .seg { display: flex; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, .13); overflow: hidden; margin: 9px 0 8px; }
+  .seg i { display: block; height: 100%; width: 0; transition: width .7s cubic-bezier(.25, .8, .25, 1); }
+  .seg .s4 { background: #6fc79a; } .seg .s3 { background: #86aee6; } .seg .s2 { background: #e6bb5e; } .seg .s1 { background: #ec8676; }
+  .lg { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: rgba(246, 239, 223, .78); }
+  .lg span { white-space: nowrap; }
+  .lg b { font-weight: 700; color: #f8f2e4; margin-left: 3px; }
+  .lg .s4 { color: #92d9b3; } .lg .s3 { color: #a6c4ee; } .lg .s2 { color: #efcb7f; } .lg .s1 { color: #f2a397; }
+  .pa { grid-area: pa; display: flex; align-items: center; gap: 14px; }
+  .today { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
+    font: inherit; color: var(--cream); background: rgba(255, 255, 255, .04); border: 1px solid rgba(220, 192, 138, .55);
+    border-radius: 12px; padding: 9px 14px; min-height: 46px; text-align: left; }
+  .today .tl { font-size: 14px; font-weight: 700; letter-spacing: .04em; }
+  .today .tv { font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .today .tv b { font-family: var(--serif-en); font-size: 25px; font-weight: 600; line-height: 1; margin-right: 2px; }
+  .today.has { color: #1b2644; border-color: transparent; background: linear-gradient(135deg, #efd8a2 0%, #d0a865 100%);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+  .today[aria-pressed=true] { outline: 2px solid #f8f2e4; outline-offset: 2px; }
+  .today:disabled { cursor: default; color: var(--cream); opacity: 1; }
+  .today.done .tv { color: var(--gold-l); }
+  .solved { font-size: 12px; color: rgba(246, 239, 223, .78); white-space: nowrap; text-align: center; line-height: 1.3; }
+  .solved b { display: block; font-family: var(--serif-en); font-size: 25px; font-weight: 600; color: #f8f2e4; line-height: 1; }
+  @media (min-width: 640px) {
+    .cover { padding-bottom: 22px; }
+    h1 { font-size: 34px; }
+    .prog { grid-template-columns: 82px 1fr 240px; grid-template-areas: "ring pm pa"; gap: 18px; padding: 16px 18px; }
+    .ring { width: 82px; height: 82px; }
+  }
+  /* ---- 絞り込み・回・すべて開く ---- */
+  .tools { padding: 16px 0 4px; }
+  .frow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .frow .lb { font-size: 13px; color: var(--ink2); min-width: 4.5em; letter-spacing: .04em; }
   .sel { position: relative; display: inline-block; }
   .sel select { -webkit-appearance: none; appearance: none; font: inherit; font-size: 15px; font-weight: 700;
-    color: #2f4a6d; background: #fff; border: 1px solid #c8ced6; border-radius: 10px;
-    padding: 8px 32px 8px 14px; cursor: pointer; }
-  .sel::after { content: "▾"; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    color: #8a97a8; pointer-events: none; font-size: 13px; }
-  .sel.on select { background: #2f4a6d; color: #fff; border-color: #2f4a6d; }
-  .sel.on::after { color: #c9d4e2; }
-  .perw { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: #2f4a6d; }
+    color: var(--ink); background: var(--card); border: 1px solid var(--line2); border-radius: 999px;
+    padding: 8px 34px 8px 16px; cursor: pointer; box-shadow: 0 1px 2px rgba(27, 38, 68, .05); }
+  .sel::after { content: "▾"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--gold); pointer-events: none; font-size: 13px; }
+  .sel.on select { background: var(--navy); color: var(--cream); border-color: var(--navy); }
+  .sel.on::after { color: var(--gold-l); }
+  .perw { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink); }
   .perw[hidden] { display: none; }
+  #cnt { font-size: 13px; font-weight: 700; color: var(--gold-d); }
+  #cnt:empty { display: none; }
+  .oc { margin-left: auto; display: flex; gap: 6px; }
+  .oc button { font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line2); background: transparent; color: var(--ink2); }
+  /* ---- 編・章 ---- */
   summary { list-style: none; cursor: pointer; }
   summary::-webkit-details-marker { display: none; }
-  .hd { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; color: #2f4a6d; }
-  .hd::before { content: "▸"; font-family: -apple-system, "Hiragino Sans", sans-serif; color: #8a97a8; font-size: 12px; width: 12px; flex: none; transition: transform .15s; }
+  .hd { position: relative; display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; color: var(--ink); }
+  .hd::before { content: "▸"; font-family: var(--sans); color: var(--gold); font-size: 12px; width: 12px; flex: none; transition: transform .15s; }
   details[open] > .hd::before { transform: rotate(90deg); }
-  .t { flex: 1; }
-  .hcnt { color: #888; font-size: 12px; font-weight: 400; font-family: -apple-system, "Hiragino Sans", sans-serif; }
-  details.lv1 { background: #fff; border: 1px solid #c8ced6; border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
-  .lv1 > .hd { font-size: 17px; }
-  .lv1 > .in { border-top: 1px solid #e3e7ec; padding: 4px 0 8px; }
-  .lv2 > .hd { font-size: 16px; }
-  .in .in { margin-left: 16px; border-left: 2px solid #e3e7ec; }
-  /* 1問 */
-  details.q { margin: 6px 12px 6px 14px; border: 1px solid #e3e7ec; border-radius: 10px; background: #fbfcfd; }
-  details.q[open] { background: #fff; border-color: #c8ced6; }
-  details.q > summary { padding: 8px 10px; }
-  .qm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: -apple-system, "Hiragino Sans", sans-serif; }
-  .no { font-weight: 700; color: #2f4a6d; font-size: 13px; }
-  .pg { color: #888; font-size: 12px; }
-  .adv { font-size: 11px; color: #fff; background: #111; border-radius: 9px; padding: 1px 7px; }
-  .lad { margin-left: auto; font-size: 12px; font-weight: 700; border-radius: 9px; padding: 2px 8px; white-space: nowrap; }
+  .t { flex: 1; letter-spacing: .04em; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+  .tn { color: var(--gold-d); }
+  .hcnt { color: var(--mute); font-size: 12px; font-weight: 400; font-family: var(--sans); white-space: nowrap; }
+  .hm { color: var(--green); font-weight: 700; }
+  .hbar { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; border-radius: 0 2px 2px 0;
+    background: linear-gradient(90deg, #e3c88f, #b8904f); transition: width .7s cubic-bezier(.25, .8, .25, 1); }
+  details.lv1 { background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 14px;
+    overflow: hidden; box-shadow: var(--shadow); }
+  .lv1 > .hd { font-size: 17px; padding: 15px 16px; }
+  .lv1 > .in { border-top: 1px solid var(--line); padding: 6px 0 10px; }
+  .lv2 > .hd { font-size: 16px; padding: 13px 14px 7px; }
+  .in .in { margin-left: 12px; border-left: 1px solid var(--line2); }
+  /* ---- 1問 ---- */
+  details.q { margin: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff;
+    transition: border-color .2s, box-shadow .2s; }
+  details.q[open] { border-color: var(--line2); box-shadow: 0 6px 22px rgba(27, 38, 68, .08); }
+  details.q > summary { padding: 10px 12px 12px; }
+  .qm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--sans); }
+  .no { font-weight: 700; color: var(--ink); font-size: 13px; letter-spacing: .02em; }
+  .pg { color: var(--mute); font-size: 12px; }
+  .adv { font-size: 11px; color: var(--cream); background: var(--ink); border-radius: 9px; padding: 1px 8px; letter-spacing: .06em; }
+  .lad { margin-left: auto; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
   .lad:empty { display: none; }
-  .lad.s1 { color: #c0392b; background: #fdecea; }
-  .lad.s2 { color: #a66a00; background: #fff4d6; }
-  .lad.s3 { color: #2563a8; background: #e6f0fb; }
-  .lad.s4 { color: #1e7d4f; background: #e3f4ea; }
-  .lad.due { color: #fff; background: #c0392b; }
-  .qt { margin-top: 6px; color: #2f4a6d; font-size: 15px; line-height: 1.6; }
-  .ans { padding: 2px 12px 12px; color: #c0392b; font-size: 14px; line-height: 1.7; border-top: 1px dashed #e3e7ec; margin: 0 10px; padding-top: 8px; }
-  .ans b { color: #a31515; }
+  .lad.s1 { color: var(--red); background: #fbeae7; }
+  .lad.s2 { color: var(--amber); background: #faf0d5; }
+  .lad.s3 { color: var(--blue); background: #e7eff9; }
+  .lad.s4 { color: var(--green); background: #e4f2ea; }
+  .lad.due { color: #fff; background: linear-gradient(135deg, #c8473b, #a82b22); }
+  .qt { margin-top: 9px; color: var(--ink); font-size: 16px; line-height: 1.75; letter-spacing: .02em; }
+  .ans { padding: 0 10px 14px; }
+  .atext { color: var(--red); font-size: 15px; line-height: 1.9; letter-spacing: .02em; background: var(--tint);
+    border-radius: 10px; padding: 12px 12px 12px 13px; border-left: 3px solid rgba(179, 51, 42, .35); }
+  .atext b { color: var(--red-d); background: linear-gradient(transparent 64%, rgba(240, 196, 92, .34) 64%); }
+  @media (min-width: 640px) {
+    .lv1 > .hd { font-size: 19px; padding: 16px 20px; }
+    .lv2 > .hd { font-size: 17px; }
+    .in .in { margin-left: 16px; }
+    details.q { margin: 10px 16px; }
+    .ans { padding: 0 12px 14px; }
+    .qt { font-size: 17px; }
+    .atext { font-size: 16px; padding: 14px 18px; }
+  }
   /* 判定ボタン（印はここでだけ付ける。□は表示だけ） */
-  .judge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px;
-    font-family: -apple-system, "Hiragino Sans", sans-serif; }
-  .judge button { font: inherit; font-size: 15px; font-weight: 700; padding: 9px 16px; border-radius: 10px;
-    cursor: pointer; border: 1.5px solid; background: #fff; }
-  .judge .jo { color: #1e7d4f; border-color: #1e7d4f; }
-  .judge .jx { color: #c0392b; border-color: #c0392b; margin-right: auto; }
-  .judge .jundo { font-size: 12px; font-weight: 400; color: #8a97a8; border: 0; padding: 6px 4px; text-decoration: underline; }
+  .judge { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; font-family: var(--sans); }
+  .judge button { font: inherit; font-size: 15px; font-weight: 700; min-height: 46px; border-radius: 12px;
+    cursor: pointer; border: 1.5px solid; transition: transform .1s; }
+  .judge button:active { transform: scale(.97); }
+  .judge .jo { color: var(--green); border-color: rgba(44, 122, 82, .5); background: #f0f8f3; }
+  .judge .jx { color: var(--red); border-color: rgba(179, 51, 42, .45); background: #fdf1ef; }
+  .judge .jundo { grid-column: 1 / -1; justify-self: end; min-height: 0; font-size: 12px; font-weight: 400;
+    color: var(--mute); border: 0; background: none; padding: 4px 2px; text-decoration: underline; }
   .judge .jundo[hidden] { display: none; }
+  @media (min-width: 640px) { .judge { grid-template-columns: 180px 180px 1fr; } .judge .jundo { grid-column: auto; } }
   .ans { box-sizing: border-box; overflow: hidden; }
   .in { box-sizing: border-box; overflow: hidden; }   /* overflow で中の余白の計算を開閉アニメと揃える */
   /* 閉じている編・章・問題の中身は確実に消す（Safari で閉じた中身が場所だけ取るのを防ぐ） */
   details:not([open]) > .in, details:not([open]) > .ans { display: none; }
-  .filter { align-items: center; margin-top: -6px; }
-  .filter .lb { font-size: 13px; color: #666; min-width: 4.5em; }
-
-  #cnt { font-size: 13px; color: #666; }
-  #none { color: #888; text-align: center; }
+  #none { color: var(--mute); text-align: center; padding: 28px 0; letter-spacing: .06em; }
+  #none::before, #none::after { content: "—"; color: var(--gold); margin: 0 .6em; }
   .hide { display: none !important; }
-  #syncStatus { font-size: 12px; color: #c0392b; margin: -6px 0 12px; }
-  .syncbox { background: #f4f6f9; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: #333; }
-  .syncbox .st { font-weight: 700; color: #1e7d4f; }
-  .syncbox .st.bad { color: #c0392b; }
-  .syncbox .st.wait { color: #8a97a8; }
-  .syncbox .sub { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.6; }
-  #syncNow { margin-top: 8px; }
+  #syncStatus { font-size: 12px; color: var(--red); margin: 0 0 12px; }
+  /* チェック□□□ */
   .ck { display: flex; gap: 4px; flex: none; }
-
-  .ck i { width: 24px; height: 24px; border: 1.5px solid #8a97a8; border-radius: 4px; background: #fff;
-    font-style: normal; font-weight: 700; font-size: 17px; line-height: 21px; text-align: center; }
-  .ck i.x { color: #c0392b; border-color: #c0392b; }
-  .ck i.o { color: #1e7d4f; border-color: #1e7d4f; }
+  .ck i { position: relative; width: 24px; height: 24px; box-sizing: border-box; border: 1.5px solid #bdb5a6; border-radius: 6px;
+    background: #fff; font-style: normal; font-weight: 700; font-size: 16px; line-height: 21px; text-align: center; }
+  .ck i.x { color: var(--red); border-color: var(--red); background: #fcefed; }
+  .ck i.o { color: var(--green); border-color: var(--green); background: #eef7f2; }
   .ck i.x::after { content: "×"; }
   .ck i.o::after { content: "○"; }
   /* ○を付けた日（設定で表示・非表示） */
-  .ck i { position: relative; }
   [data-sd=on] .ck i.o[data-d]::before { content: attr(data-d); position: absolute; top: 100%; left: 50%;
-    transform: translateX(-50%); margin-top: 2px; font-size: 10px; font-weight: 400; line-height: 1;
-    color: #1e7d4f; white-space: nowrap; font-family: -apple-system, "Hiragino Sans", sans-serif; }
+    transform: translateX(-50%); margin-top: 3px; font-size: 10px; font-weight: 400; line-height: 1;
+    color: var(--green); white-space: nowrap; font-family: var(--sans); }
   [data-sd=on] .ck.hasd { margin-bottom: 13px; }
+  /* 印を付けたときの小さな動き（「視差効果を減らす」がオンなら動かさない） */
+  @keyframes pop { 0% { transform: scale(.5); } 55% { transform: scale(1.22); } 100% { transform: scale(1); } }
+  @keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(220, 192, 138, 0); } 25% { box-shadow: 0 0 0 5px rgba(220, 192, 138, .6); }
+    100% { box-shadow: 0 0 0 14px rgba(220, 192, 138, 0); } }
+  .pop { animation: pop .45s cubic-bezier(.3, 1.4, .5, 1); }
+  details.q.glow { animation: glow 1.1s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .pop, details.q.glow { animation: none; }
+    .ring .fg, .seg i, .hbar { transition: none; }
+  }
+  /* 文字の設定（問題部分）：s＝標準（端末のゴシック）、a＝上品な明朝、c＝手書き風、d＝クラシックな明朝 */
+  [data-qf=a] #tree { font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif; font-weight: 500; }
+  [data-qf=c] #tree { font-family: "Klee One", serif; }
+  [data-qf=d] #tree { font-family: "Zen Old Mincho", "Hiragino Mincho ProN", serif; }
+  #tree .hd .t, #tree .qt, #tree b { font-weight: 700; }
+  [data-qf=c] #tree .hd .t, [data-qf=c] #tree .qt, [data-qf=c] #tree b { font-weight: 600; }
+  /* ---- 設定画面 ---- */
+  #setting { position: fixed; inset: 0; background: rgba(16, 23, 44, .45); z-index: 10;
+    display: flex; align-items: flex-start; justify-content: center; padding: 56px 16px; overflow-y: auto; }
+  #setting[hidden] { display: none; }
+  .sheet { background: var(--card); border-radius: 18px; width: 100%; max-width: 520px; padding: 6px 20px 20px;
+    box-shadow: 0 20px 60px rgba(10, 16, 34, .35); border: 1px solid var(--line); box-sizing: border-box; }
+  .sh { display: flex; align-items: center; justify-content: space-between; font-size: 20px; font-weight: 700;
+    color: var(--ink); padding: 12px 0 10px; border-bottom: 1px solid var(--line); letter-spacing: .08em; }
+  #setClose { font-size: 26px; line-height: 1; border: 0; background: none; color: var(--mute); cursor: pointer; padding: 4px 6px; }
+  .sec { margin-top: 16px; }
+  .sec .lb { font-size: 13px; color: var(--ink2); margin-bottom: 8px; letter-spacing: .04em; }
+  .sec button { font-size: 16px; padding: 8px 15px; border-radius: 999px; border: 1px solid var(--line2);
+    background: #fff; color: var(--ink); cursor: pointer; margin: 0 6px 8px 0; }
+  .sec button.on { background: var(--navy); color: var(--cream); border-color: var(--navy); }
+  .sec [data-f=s] { font-weight: 700; }
+  .sec [data-f=a] { font-family: "Shippori Mincho", serif; font-weight: 700; }
+  .sec [data-f=c] { font-family: "Klee One", serif; font-weight: 600; }
+  .sec [data-f=d] { font-family: "Zen Old Mincho", serif; font-weight: 700; }
+  .syncbox { background: var(--tint); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; color: var(--ink); }
+  .syncbox .st { font-weight: 700; color: var(--green); }
+  .syncbox .st.bad { color: var(--red); }
+  .syncbox .st.wait { color: var(--mute); }
+  .syncbox .sub { font-size: 12px; color: var(--ink2); margin-top: 4px; line-height: 1.6; }
+  #syncNow { margin-top: 10px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <button id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
-  <h1><span class="eb">Corporate Law · Web Review</span>企業法 <em>web</em>確認問題</h1>
-  <div class="bar">
-    <a href="./">← 戻る</a>
-    <button id="openAll">すべて開く</button>
-    <button id="closeAll">すべて閉じる</button>
+<header class="cover">
+  <div class="wrap">
+    <div class="top">
+      <a class="back" href="./">‹ 戻る</a>
+      <button id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+    <h1 class="disp"><span class="eb">Corporate Law · Web Review</span>企業法 <em>web</em>確認問題</h1>
+    <section class="prog" aria-label="進み具合">
+      <div class="ring" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d9a3"/><stop offset="1" stop-color="#b98f4e"/></linearGradient></defs>
+          <circle class="tr" cx="32" cy="32" r="27"/><circle class="fg" id="pgRing" cx="32" cy="32" r="27"/></svg>
+        <span class="pct"><span><b id="pgPct">0</b>%</span></span>
+      </div>
+      <div class="pm">
+        <div class="pt"><span><span id="pgScope">全回</span>の習得（◎）</span><span><b id="pgDone">0</b> / <span id="pgAll">0</span>問</span></div>
+        <div class="seg" aria-hidden="true"><i class="s4"></i><i class="s3"></i><i class="s2"></i><i class="s1"></i></div>
+        <div class="lg" id="pgLg"><span class="s4">◎<b>0</b></span><span class="s3">○<b>0</b></span><span class="s2">△<b>0</b></span><span class="s1">✕<b>0</b></span><span>未着手<b>0</b></span></div>
+      </div>
+      <div class="pa">
+        <button class="today" id="pgToday" aria-pressed="false"><span class="tl">今日の復習</span><span class="tv" id="pgDue"></span></button>
+        <div class="solved">今日解いた<b id="pgSolved">0</b></div>
+      </div>
+    </section>
   </div>
-  <div class="bar filter">
-    <span class="lb">絞り込み</span>
-    <span class="sel"><select id="fMode" aria-label="絞り込み">
-      <option value="all">すべて</option><option value="today">今日の復習</option>
-      <option value="x1">×1つ以上</option><option value="x2">×2つ以上</option><option value="x3">×3つ以上</option>
-      <option value="old">最終復習が…</option>
-    </select></span>
-    <span id="perWrap" class="perw" hidden>
-      <span class="sel"><select id="oldPer" aria-label="期間">
-        <option value="d3">3日</option><option value="d7">1週間</option><option value="d14">2週間</option>
-        <option value="m1" selected>1ヶ月</option><option value="m2">2ヶ月</option><option value="m3">3ヶ月</option>
-      </select></span>以上前</span>
-  </div>
-  <div class="bar filter">
-    <span class="lb">回</span>
-    <span class="sel"><select id="fLes" aria-label="回">
-      <option value="">全回</option>
+</header>
+<main class="wrap">
+  <div class="tools" id="tools">
+    <div class="frow">
+      <span class="lb">絞り込み</span>
+      <span class="sel"><select id="fMode" aria-label="絞り込み">
+        <option value="all">すべて</option><option value="today">今日の復習</option>
+        <option value="x1">×1つ以上</option><option value="x2">×2つ以上</option><option value="x3">×3つ以上</option>
+        <option value="old">最終復習が…</option>
+      </select></span>
+      <span id="perWrap" class="perw" hidden>
+        <span class="sel"><select id="oldPer" aria-label="期間">
+          <option value="d3">3日</option><option value="d7">1週間</option><option value="d14">2週間</option>
+          <option value="m1" selected>1ヶ月</option><option value="m2">2ヶ月</option><option value="m3">3ヶ月</option>
+        </select></span>以上前</span>
+    </div>
+    <div class="frow">
+      <span class="lb">回</span>
+      <span class="sel"><select id="fLes" aria-label="回">
+        <option value="">全回</option>
 __LESSONS__
-    </select></span>
-    <span id="cnt"></span>
+      </select></span>
+      <span id="cnt"></span>
+      <span class="oc"><button id="openAll">すべて開く</button><button id="closeAll">すべて閉じる</button></span>
+    </div>
   </div>
   <p id="syncStatus" hidden></p>
   <div id="tree">
 __TREE__
   </div>
   <p id="none" hidden>該当する問題はありません</p>
-</div>
+</main>
 <div id="setting" hidden>
   <div class="sheet" role="dialog" aria-label="設定">
-    <div class="sh"><span>設定</span><button id="setClose" aria-label="閉じる">×</button></div>
+    <div class="sh"><span class="disp">設定</span><button id="setClose" aria-label="閉じる">×</button></div>
     <div class="sec" data-k="kigyoho-font-title" data-attr="tf"><div class="lb">タイトルの文字</div>
       <button data-f="s">標準</button><button data-f="a">上品な明朝</button><button data-f="c">手書き風</button><button data-f="d">クラシック明朝</button></div>
     <div class="sec" data-k="kigyoho-font-q" data-attr="qf"><div class="lb">問題の文字</div>
@@ -596,13 +776,64 @@ __TREE__
       lad.className = "lad s" + L.stage;
     }
   }
-  function paint() { cks.forEach(paintOne); }
+  // 進み具合（表紙）：選んでいる回の問題の、復習ラダーの段階ごとの数・今日の復習・今日解いた数。
+  // 編・章の見出しにも、その中の◎の数（編は◎の割合の金の線も）を出す
+  var RING = 2 * Math.PI * 27;
+  function paintProgress() {
+    var n = [0, 0, 0, 0, 0], due = 0, solved = 0, t = today(), scope = fl || "";
+    document.querySelectorAll("#tree details.q").forEach(function (q) {
+      var m = marks[q.querySelector(".ck").dataset.id], L = ladder(m);
+      q._st = L.stage;
+      if (scope && q.dataset.l !== scope) return;
+      n[L.stage]++;
+      if (L.due !== null && L.due <= t) due++;
+      if (m && m.v.some(function (c, i) { return c && m.d[i] === t; })) solved++;
+    });
+    var all = n[0] + n[1] + n[2] + n[3] + n[4], r = all ? n[4] / all : 0;
+    document.getElementById("pgScope").textContent = scope || "全回";
+    document.getElementById("pgDone").textContent = n[4];
+    document.getElementById("pgAll").textContent = all;
+    document.getElementById("pgPct").textContent = Math.round(r * 100);
+    var ring = document.getElementById("pgRing");
+    ring.style.strokeDashoffset = RING * (1 - r);
+    ring.style.opacity = r ? 1 : 0;             // 0% のときに丸い端だけが点で残らないように
+    [4, 3, 2, 1].forEach(function (k) {
+      document.querySelector(".seg .s" + k).style.width = (all ? n[k] / all * 100 : 0) + "%";
+    });
+    var lg = document.querySelectorAll("#pgLg b");
+    [4, 3, 2, 1, 0].forEach(function (k, i) { lg[i].textContent = n[k]; });
+    var tb = document.getElementById("pgToday");
+    tb.classList.toggle("has", due > 0);
+    tb.classList.toggle("done", !due && solved > 0);
+    tb.setAttribute("aria-pressed", String(fm === "today"));
+    tb.disabled = !due && fm !== "today";        // 復習がない日は押しても空の一覧になるだけなので押せなくする
+    document.getElementById("pgDue").innerHTML = due ? "<b>" + due + "</b>問 ›" : (solved ? "完了 ✓" : "なし");
+    document.getElementById("pgSolved").textContent = solved;
+    document.querySelectorAll("#tree details.h").forEach(function (h) {
+      var qs = h.querySelectorAll("details.q"), k = 0;
+      qs.forEach(function (q) { if (q._st === 4) k++; });
+      h.querySelector(":scope > summary .hm").textContent = k ? "◎" + k + " / " : "";
+      var bar = h.querySelector(":scope > summary .hbar");
+      if (bar) bar.style.width = (qs.length ? k / qs.length * 100 : 0) + "%";
+    });
+  }
+  function paint() { cks.forEach(paintOne); paintProgress(); }
   paint();
+  // 印を付けたときの小さな動き（cls のアニメーションを1回だけ。「視差効果を減らす」がオンなら動かさない）
+  function flash(el, cls) {
+    if (!el || reduceMotion) return;
+    el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+    el.addEventListener("animationend", function end(e) {
+      if (e.target !== el) return;
+      el.classList.remove(cls); el.removeEventListener("animationend", end);
+    });
+  }
   var timer = null;
   // 印を付ける：答えの下の「○ できた」「× できなかった」で、次の空いている□に入れる。
   // 「最後の印を消す」で一番右の印を消す。□そのものはタップしても変わらない（タップミス対策）
   function judge(q, r) {
     var ck = q.querySelector(".ck"), id = ck.dataset.id;
+    var before = ladder(marks[id]).stage;
     var m = marks[id] || { v: [], d: [] };
     var v = m.v.slice(), d = m.d.slice();
     while (v.length && !v[v.length - 1]) { v.pop(); d.pop(); }   // 後ろの空は詰める
@@ -610,7 +841,14 @@ __TREE__
     else if (v.length) { v.pop(); d.pop(); }
     else return;
     marks[id] = { v: v, d: d, t: Date.now() };
-    saveLocal(); paintOne(ck);
+    saveLocal(); paintOne(ck); paintProgress();
+    if (r) {
+      flash(ck.children[v.length - 1], "pop");      // 入った印がポンと出る
+      if (before !== 4 && ladder(marks[id]).stage === 4) {   // ◎（復習不要）になったら、問題のまわりが金色に光る
+        flash(ck.parentNode.querySelector(".lad"), "pop");
+        flash(q, "glow");
+      }
+    }
     clearTimeout(timer); timer = setTimeout(sync, 1500);
   }
   document.querySelectorAll("details.q .judge button").forEach(function (b) {
@@ -716,11 +954,18 @@ __TREE__
     document.getElementById("perWrap").hidden = fm !== "old";
     document.getElementById("cnt").textContent = on ? cnt + "問" : "";
     document.getElementById("none").hidden = any;
+    paintProgress();                 // 進み具合は選んでいる回について出す
     try { localStorage.setItem(FKEY, JSON.stringify({ m: fm, l: fl, p: per.value })); } catch (e) {}
   }
   fMode.onchange = function () { fm = fMode.value; applyFilter(); };
   fLes.onchange = function () { fl = fLes.value; applyFilter(); };
   per.onchange = function () { applyFilter(); };
+  // 表紙の「今日の復習」：絞り込みを「今日の復習」にして一覧へ（もう一度押すと「すべて」に戻す）
+  document.getElementById("pgToday").onclick = function () {
+    fm = fm === "today" ? "all" : "today";
+    applyFilter();
+    if (fm === "today") document.getElementById("tools").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  };
   try {
     var f0 = JSON.parse(localStorage.getItem(FKEY)) || {};
     if (fMode.querySelector('option[value="' + f0.m + '"]')) fm = f0.m;
@@ -743,8 +988,9 @@ __TREE__
 def build_web():
     root, lessons = load_web()
     les = "\n".join(f'      <option value="{html.escape(l)}">{html.escape(l)}</option>' for l in lessons)
-    (BASE / "toc.html").write_text(with_version(WEB_HTML.replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les)),
-                                   encoding="utf-8")
+    page = (WEB_HTML.replace("__FONTS__", FONTS).replace("__BASE__", BASE_CSS)
+            .replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les))
+    (BASE / "toc.html").write_text(with_version(page), encoding="utf-8")
     n = sum(web_count(x) for x in root)
     print(f"web確認問題: {n}問 → toc.html")
     return n
@@ -782,15 +1028,21 @@ def main():
                         tmp.as_uri()], check=True, capture_output=True)
         pages += len(re.findall(rb"/Type\s*/Page(?![A-Za-z])", (PDF_DIR / fname).read_bytes()))
         nq = sum(1 for r in data if r[0] not in ("h1", "h2"))
-        items.append(f'  <li><a data-pdf data-name="{html.escape(name)}" href="pdf/{html.escape(fname)}">{html.escape(name)}<span>{nq}問</span></a></li>')
+        num = re.search(r"\d+", name)  # 「第3回」→ 03（入口ページの金の数字）
+        ln = f"{int(num.group()):02d}" if num else "·"
+        items.append(f'    <li><a data-pdf data-name="{html.escape(name)}" href="pdf/{html.escape(fname)}">'
+                     f'<span class="ln">{ln}</span><span class="lt"><span class="lname disp">{html.escape(name)}</span>'
+                     f'<span class="n">{nq}問</span></span><span class="lp">PDF</span></a></li>')
         counts[name] = nq
         print(f"{name}: {nq}問 → pdf/{fname}")
     tmp.unlink()
     nweb = build_web()
-    toc = ('<ul class="toc">\n'
-           f'  <li><a data-fresh href="toc.html">web確認問題<span>{nweb}問</span></a></li>\n'
-           '</ul>\n')
-    (BASE / "index.html").write_text(with_version(INDEX.replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items))), encoding="utf-8")
+    toc = ('  <a class="feat" data-fresh href="toc.html"><span class="fe">Web Review</span>'
+           '<span class="ft disp">企業法 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span>'
+           f'<span class="fn"><b>{nweb}</b>問</span></a>\n')
+    page = (INDEX.replace("__FONTS__", FONTS).replace("__BASE__", BASE_CSS)
+            .replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items)))
+    (BASE / "index.html").write_text(with_version(page), encoding="utf-8")
     (BASE / "counts.json").write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
     print("ok")
 
