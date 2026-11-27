@@ -24,6 +24,8 @@ def load():
             elif t == "h2":
                 h2 = r["question"]
                 rows.append(("h2", h2))
+            elif t == "h3":
+                continue  # 節の見出しは web確認問題だけに出す（PDF には載せない）
             else:
                 # 授業が編・章の途中から始まるときは、見出しを繰り返して載せる
                 if not rows:
@@ -278,11 +280,11 @@ def with_version(page):
 
 # ---------- web確認問題（一問一答を1問ずつ、web で） ----------
 def load_web():
-    """questions.csv を 編→章→問題 の木にする（回をまたいで同じ編・章はまとめる）。
+    """questions.csv を 編→章→節→問題 の木にする（回をまたいで同じ編・章・節はまとめる）。
     問題は {"lesson","no","page","q","a","adv"}。頁が空欄の問題は直前の問題の頁を使う。"""
     root = []
     lessons = []
-    h1 = h2 = None
+    h1 = h2 = h3 = None
     page = ""
     lesson = ""
     with open(BASE / "questions.csv", encoding="utf-8") as f:
@@ -294,14 +296,20 @@ def load_web():
                 h1 = next((n for n in root if n["title"] == r["question"]), None)
                 if not h1:
                     h1 = {"title": r["question"], "children": [], "qs": []}; root.append(h1)
-                h2 = None
+                h2 = h3 = None
             elif t == "h2":
                 h2 = next((n for n in h1["children"] if n["title"] == r["question"]), None)
                 if not h2:
                     h2 = {"title": r["question"], "children": [], "qs": []}; h1["children"].append(h2)
+                h3 = None
+            elif t == "h3":
+                par = h2 or h1
+                h3 = next((n for n in par["children"] if n["title"] == r["question"]), None)
+                if not h3:
+                    h3 = {"title": r["question"], "children": [], "qs": []}; par["children"].append(h3)
             elif t == "q":
                 page = (r["page"] or "").strip() or page
-                (h2 or h1)["qs"].append({"lesson": lesson, "no": r["no"], "page": page, "q": r["question"],
+                (h3 or h2 or h1)["qs"].append({"lesson": lesson, "no": r["no"], "page": page, "q": r["question"],
                                          "a": r["answer"], "adv": (r.get("level") or "").strip() == "上"})
     return root, lessons
 
@@ -310,7 +318,8 @@ def web_count(n):
     return len(n["qs"]) + sum(web_count(c) for c in n["children"])
 
 
-def web_nodes(nodes, lv=1):
+def web_nodes(nodes, lv=1, parent=""):
+    """lv1＝編、lv2＝章、lv3＝節。parent は1つ上の見出し（節の data-key を章ごとに分けるため）"""
     out = []
     for n in nodes:
         qs = []
@@ -324,13 +333,15 @@ def web_nodes(nodes, lv=1):
                       '<div class="judge"><button class="jo" data-r="o">○ できた</button>'
                       '<button class="jx" data-r="x">× できなかった</button>'
                       '<button class="jundo" data-r="">最後の印を消す</button></div></div></details>')
-        inner = "".join(qs) + web_nodes(n["children"], lv + 1)
+        inner = "".join(qs) + web_nodes(n["children"], lv + 1, n["title"])
         # 「第0編　入門生の…」の「第0編」は金色にする（狭い画面では全角スペースのところで折り返す）
         num, sp, rest = n["title"].partition("　")
         title = f'<span class="tn">{html.escape(num)}</span>{sp}{html.escape(rest)}' if sp else html.escape(n["title"])
         # .hm＝その編・章の◎の数、.hbar＝編の◎の割合の金の線（どちらも画面側で入れる）
         bar = '<i class="hbar"></i>' if lv == 1 else ''
-        out.append(f'<details class="h lv{lv}" data-key="h:{html.escape(n["title"])}"><summary class="hd">'
+        # 開いている見出しの記録用のキー（節は「1.　総説」のような同じ名前が別の章にも出うるので、章の名前も付ける）
+        key = n["title"] if lv <= 2 else f'{parent}/{n["title"]}'
+        out.append(f'<details class="h lv{lv}" data-key="h:{html.escape(key)}"><summary class="hd">'
                    f'<span class="t">{title}</span><span class="hcnt"><span class="hm"></span>{web_count(n)}問</span>{bar}</summary>'
                    f'<div class="in">{inner}</div></details>')
     return "".join(out)
@@ -438,7 +449,8 @@ __BASE__
   .hd { position: relative; display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; color: var(--ink); }
   .hd::before { content: "▸"; font-family: var(--sans); color: var(--gold); font-size: 12px; width: 12px; flex: none; transition: transform .15s; }
   details[open] > .hd::before { transform: rotate(90deg); }
-  .t { flex: 1; letter-spacing: .04em; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+  .t { flex: 1; letter-spacing: .04em; line-height: 1.5; }
+  .lv1 > .hd .t, .lv2 > .hd .t { word-break: keep-all; overflow-wrap: anywhere; }   /* 編・章は全角スペースのところで折り返す */
   .tn { color: var(--gold-d); }
   .hcnt { color: var(--mute); font-size: 12px; font-weight: 400; font-family: var(--sans); white-space: nowrap; }
   .hm { color: var(--green); font-weight: 700; }
@@ -449,6 +461,8 @@ __BASE__
   .lv1 > .hd { font-size: 17px; padding: 15px 16px; }
   .lv1 > .in { border-top: 1px solid var(--line); padding: 6px 0 10px; }
   .lv2 > .hd { font-size: 16px; padding: 13px 14px 7px; }
+  .lv3 > .hd { font-size: 15px; padding: 11px 12px 6px; gap: 8px; }   /* 節（1. 機関総説 など） */
+  .lv3 > .hd::before { font-size: 11px; width: 11px; }
   .in .in { margin-left: 12px; border-left: 1px solid var(--line2); }
   /* ---- 1問 ---- */
   details.q { margin: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff;
@@ -474,6 +488,7 @@ __BASE__
   @media (min-width: 640px) {
     .lv1 > .hd { font-size: 19px; padding: 16px 20px; }
     .lv2 > .hd { font-size: 17px; }
+    .lv3 > .hd { font-size: 16px; }
     .in .in { margin-left: 16px; }
     details.q { margin: 10px 16px; }
     .ans { padding: 0 12px 14px; }
