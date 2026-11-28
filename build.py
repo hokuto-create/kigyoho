@@ -96,7 +96,7 @@ def render(name, data, start=0):
         bodies.append('<tbody>' + "".join(pending) + '</tbody>')
     return f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{CSS}
 html {{ counter-reset: page {start}; }}</style></head><body>
-<h1 class="title">企業法　一問一答　{html.escape(name)}</h1>
+<h1 class="title">企業法　web確認問題　{html.escape(name)}</h1>
 <div class="sub">答えは右列。隠して解き、間違えたら□に印。3回連続正解で卒業。{ADV_MARK}＝上級の範囲。</div>
 <table><colgroup><col style="width:19mm"><col style="width:11mm"><col style="width:11mm"><col style="width:38%"><col></colgroup>
 <thead><tr><th>チェック</th><th>No</th><th>頁</th><th>問題</th><th>答え</th></tr></thead>
