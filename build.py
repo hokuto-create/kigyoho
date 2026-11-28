@@ -342,7 +342,7 @@ def web_nodes(nodes, lv=1, parent=""):
         # 開いている見出しの記録用のキー（節は「1.　総説」のような同じ名前が別の章にも出うるので、章の名前も付ける）
         key = n["title"] if lv <= 2 else f'{parent}/{n["title"]}'
         out.append(f'<details class="h lv{lv}" data-key="h:{html.escape(key)}"><summary class="hd">'
-                   f'<span class="t">{title}</span><span class="hcnt"><span class="hm"></span>{web_count(n)}問</span>{bar}</summary>'
+                   f'<span class="t">{title}</span><span class="hcnt"><span class="hm"></span><span class="hn">{web_count(n)}</span>問</span>{bar}</summary>'
                    f'<div class="in">{inner}</div></details>')
     return "".join(out)
 
@@ -831,9 +831,11 @@ __TREE__
     document.getElementById("pgDue").innerHTML = due ? "<b>" + due + "</b>問 ›" : (solved ? "完了 ✓" : "なし");
     document.getElementById("pgSolved").textContent = solved;
     document.querySelectorAll("#tree details.h").forEach(function (h) {
-      var qs = h.querySelectorAll("details.q"), k = 0;
+      // 問題数・◎の数は選んでいる回の問題だけで数える（全回なら全部）
+      var qs = Array.prototype.filter.call(h.querySelectorAll("details.q"), function (q) { return !fl || q.dataset.l === fl; }), k = 0;
       qs.forEach(function (q) { if (q._st === 4) k++; });
       h.querySelector(":scope > summary .hm").textContent = k ? "◎" + k + " / " : "";
+      h.querySelector(":scope > summary .hn").textContent = qs.length;
       var bar = h.querySelector(":scope > summary .hbar");
       if (bar) bar.style.width = (qs.length ? k / qs.length * 100 : 0) + "%";
     });
