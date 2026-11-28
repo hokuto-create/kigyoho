@@ -145,7 +145,7 @@ INDEX = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="theme-color" content="#1b2644">
-<title>企業法 一問一答</title>
+<title>企業法 web確認問題</title>
 __FONTS__
 <script>
   // タイトルの文字（web確認問題の設定画面で選ぶ。この端末に保存）を、描画の前に反映する
@@ -207,7 +207,7 @@ __BASE__
 <header class="cover">
   <div class="wrap">
     <div class="top"><span class="eb">Corporate Law</span><span class="date" id="date"></span></div>
-    <h1 class="disp">企業法<span>一問一答</span></h1>
+    <h1 class="disp">企業法<span>web確認問題</span></h1>
     <p class="lead">公認会計士試験</p>
   </div>
 </header>
