@@ -1,6 +1,13 @@
-# 企業法 一問一答（公認会計士試験）
+# 企業法・監査論 web確認問題（公認会計士試験）
 
-公認会計士試験・企業法の暗記用に、一問一答の PDF を作るプロジェクト。iPad のノートアプリに読み込み、Apple Pencil でチェックしながら回す。
+公認会計士試験・企業法の暗記用に、一問一答の PDF を作るプロジェクト。iPad のノートアプリに読み込み、Apple Pencil でチェックしながら回す。監査論も同じ形の web確認問題を置く（同じサイトに科目として追加）。
+
+## 科目
+- `build.py` の `SUBJECTS` に科目ごとのファイル名・保存先をまとめている。下の説明は企業法のファイル名で書いているが、監査論も同じ仕組み・同じルールで作る
+  - 企業法：`questions.csv` → `toc.html`・`counts.json`・`pdf/企業法_第N回.pdf`。同期の保存先 `kigyoho:marks`（最初からある科目なので名前は変えない）
+  - 監査論：`audit_questions.csv` → `audit.html`・`audit_counts.json`・`pdf/監査論_….pdf`。同期の保存先 `kigyoho:audit-marks`（バックアップは `kigyoho-audit-backup:YYYY-MM-DD`）。この端末の保存のキーは `kigyoho-audit-…`（企業法と記録が混ざらない）。文字の設定は企業法と共通
+  - 監査論の回（lesson 行）の名前・編章節の分け方は、問題を作り始めるときにユーザーに確認する（DayFlow の講義は「入門 第1〜5回」「上級講義 第1〜20回」）
+- 入口ページ（`index.html`）の表紙の中に科目の切り替え（企業法／監査論）があり、選んだ科目のカード・回だけを出す。選んだ科目はその端末に保存。`index.html#sub=audit` で科目を指定して開ける
 
 ## ファイル
 - `questions.csv`: 問題データ。列は type, no, page, question, answer, level（改行は CRLF）

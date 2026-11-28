@@ -4,19 +4,30 @@ BASE = pathlib.Path(__file__).parent
 PDF_DIR = BASE / "pdf"
 FONT = "Noto Sans CJK JP"
 
+# 科目。企業法は最初からある科目なので、ファイル名・同期の保存先は前のまま（記録を引き継ぐため変えない）。
+#   csv＝問題データ、page＝web確認問題のページ、counts＝入口ページの問題数、pdf＝PDF のファイル名の頭
+#   ls＝この端末の保存（localStorage）のキーの頭、cloud＝□の記録の同期の保存先、backup＝日付ごとのバックアップのキーの頭
+SUBJECTS = [
+    {"id": "law", "name": "企業法", "en": "Corporate Law", "csv": "questions.csv", "page": "toc.html",
+     "counts": "counts.json", "pdf": "企業法", "ls": "kigyoho", "cloud": "kigyoho:marks", "backup": "kigyoho-backup"},
+    {"id": "audit", "name": "監査論", "en": "Auditing", "csv": "audit_questions.csv", "page": "audit.html",
+     "counts": "audit_counts.json", "pdf": "監査論", "ls": "kigyoho-audit", "cloud": "kigyoho:audit-marks",
+     "backup": "kigyoho-audit-backup"},
+]
 
-def load():
+
+def load(sub):
     """CSV を授業（lesson 行）ごとに分ける。戻り値は [(授業名, 行のリスト), ...]"""
     lessons = []
     h1 = h2 = None  # 授業をまたいで続く編・章の見出し
-    with open(BASE / "questions.csv", encoding="utf-8") as f:
+    with open(BASE / sub["csv"], encoding="utf-8") as f:
         for r in csv.DictReader(f):
             t = r["type"]
             if t == "lesson":
                 lessons.append((r["question"], []))
                 continue
             if not lessons:
-                raise SystemExit("エラー: questions.csv の先頭に lesson 行（例: lesson,,,第1回,）が必要です")
+                raise SystemExit(f"エラー: {sub['csv']} の先頭に lesson 行（例: lesson,,,第1回,）が必要です")
             rows = lessons[-1][1]
             if t == "h1":
                 h1, h2 = r["question"], None
@@ -74,7 +85,7 @@ tr.h2 td { font-weight: 700; color: #2f4a6d; padding: 3mm 2mm 1.5mm;
 ADV_MARK = '<span class="adv"><span>上</span><span>級</span></span>'
 
 
-def render(name, data, start=0):
+def render(sub, name, data, start=0):
     """start: この回より前の回のページ数の合計（ページ番号を全体の通し番号にする）"""
     # 見出しの連続とその直後の問題1問を1つの tbody（keep）にまとめる
     bodies, pending = [], []
@@ -96,7 +107,7 @@ def render(name, data, start=0):
         bodies.append('<tbody>' + "".join(pending) + '</tbody>')
     return f"""<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><style>{CSS}
 html {{ counter-reset: page {start}; }}</style></head><body>
-<h1 class="title">企業法　web確認問題　{html.escape(name)}</h1>
+<h1 class="title">{sub["name"]}　web確認問題　{html.escape(name)}</h1>
 <div class="sub">答えは右列。隠して解き、間違えたら□に印。3回連続正解で卒業。{ADV_MARK}＝上級の範囲。</div>
 <table><colgroup><col style="width:19mm"><col style="width:11mm"><col style="width:11mm"><col style="width:38%"><col></colgroup>
 <thead><tr><th>チェック</th><th>No</th><th>頁</th><th>問題</th><th>答え</th></tr></thead>
@@ -145,12 +156,18 @@ INDEX = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="theme-color" content="#1b2644">
-<title>企業法 web確認問題</title>
+<title>web確認問題</title>
 __FONTS__
 <script>
-  // タイトルの文字（web確認問題の設定画面で選ぶ。この端末に保存）を、描画の前に反映する
-  try { document.documentElement.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a"; }
-  catch (e) { document.documentElement.dataset.tf = "a"; }
+  // タイトルの文字（web確認問題の設定画面で選ぶ。この端末に保存）と、選んでいる科目を、描画の前に反映する
+  // 科目：#sub=科目のid が付いていればそれ、なければこの端末で前に選んだ科目（最初は企業法）
+  (function () {
+    var de = document.documentElement, ids = __SUBIDS__, h = location.hash.match(/^#sub=(\\w+)$/), sub = null;
+    try { de.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a"; sub = localStorage.getItem("kigyoho-subject"); }
+    catch (e) { de.dataset.tf = "a"; }
+    if (h) sub = h[1];
+    de.dataset.sub = ids.indexOf(sub) >= 0 ? sub : ids[0];
+  })();
 </script>
 <style>
 __BASE__
@@ -160,8 +177,14 @@ __BASE__
   .cover .eb { font-size: 16px; }
   .date { font-family: var(--serif-en); font-size: 15px; font-weight: 500; letter-spacing: .1em; color: rgba(246, 239, 223, .75); }
   h1 { margin: 14px 0 8px; font-size: 36px; font-weight: 700; letter-spacing: .08em; line-height: 1.25; color: #f8f2e4; }
-  h1 span { display: inline-block; margin-left: .35em; font-size: .62em; letter-spacing: .14em; color: var(--gold-l); }
+  h1 small { display: inline-block; margin-left: .35em; font-size: .62em; letter-spacing: .14em; color: var(--gold-l); }
   .lead { margin: 0; font-size: 13px; letter-spacing: .24em; color: rgba(246, 239, 223, .78); }
+  /* 科目の切り替え（表紙の中。選んでいる科目は金色） */
+  .subj { display: inline-flex; gap: 4px; margin-top: 18px; padding: 4px; border-radius: 999px;
+    background: rgba(255, 255, 255, .06); border: 1px solid rgba(220, 192, 138, .32); }
+  .subj button { font: inherit; font-size: 15px; font-weight: 700; letter-spacing: .1em; color: rgba(246, 239, 223, .82);
+    background: none; border: 0; border-radius: 999px; padding: 8px 20px; min-height: 38px; cursor: pointer; }
+__SUBCSS__
   main.wrap { position: relative; margin-top: -44px; padding-bottom: 48px; }
   /* web確認問題（表紙に少し重ねる） */
   .feat { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 16px;
@@ -199,6 +222,8 @@ __BASE__
   .lt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
   .lname { font-size: 19px; font-weight: 700; letter-spacing: .06em; }
   .les .n { font-size: 12.5px; color: var(--mute); }
+  .empty { margin: 0; padding: 22px 16px; border-radius: 14px; border: 1px dashed var(--line2); text-align: center;
+    font-size: 14px; color: var(--ink2); background: var(--card); }
   .lp { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--gold-d);
     border: 1px solid rgba(163, 125, 69, .5); border-radius: 999px; padding: 3px 9px; }
 </style>
@@ -206,17 +231,14 @@ __BASE__
 <body>
 <header class="cover">
   <div class="wrap">
-    <div class="top"><span class="eb">Corporate Law</span><span class="date" id="date"></span></div>
-    <h1 class="disp">企業法<span>web確認問題</span></h1>
+    <div class="top">__SUBEN__<span class="date" id="date"></span></div>
+    <h1 class="disp">__SUBNAME__<small>web確認問題</small></h1>
     <p class="lead">公認会計士試験</p>
+    <nav class="subj" aria-label="科目">__TABS__</nav>
   </div>
 </header>
 <main class="wrap">
-__TOC__  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと web確認問題が開きます</small></h2>
-  <ul class="les">
-__ITEMS__
-  </ul>
-</main>
+__SECTIONS__</main>
 <script>
   // 今日の日付（表紙の右上）
   (function () {
@@ -232,17 +254,30 @@ __ITEMS__
       location.href = a.getAttribute("href") + "?v=" + Date.now() + (les === null ? "" : "#les=" + encodeURIComponent(les));
     });
   });
-  // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json から表示し直す
+  // 科目の切り替え（この端末に保存）。#sub= は読んだら URL から消す
+  document.querySelectorAll(".subj button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.documentElement.dataset.sub = b.dataset.sub;
+      try { localStorage.setItem("kigyoho-subject", b.dataset.sub); } catch (e) {}
+    });
+  });
+  if (/^#sub=/.test(location.hash)) {
+    try { localStorage.setItem("kigyoho-subject", document.documentElement.dataset.sub); } catch (e) {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json（科目ごと）から表示し直す
   function refreshCounts() {
-    fetch("counts.json?v=" + Date.now(), { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .then(function (counts) {
-        document.querySelectorAll("li[data-name]").forEach(function (li) {
-          var name = li.getAttribute("data-name");
-          if (name in counts) li.querySelector(".n").textContent = counts[name] + "問";
-        });
-      })
-      .catch(function () {});
+    document.querySelectorAll("section[data-counts]").forEach(function (sec) {
+      fetch(sec.getAttribute("data-counts") + "?v=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (counts) {
+          sec.querySelectorAll("li[data-name]").forEach(function (li) {
+            var name = li.getAttribute("data-name");
+            if (name in counts) li.querySelector(".n").textContent = counts[name] + "問";
+          });
+        })
+        .catch(function () {});
+    });
   }
   refreshCounts();
   window.addEventListener("pageshow", refreshCounts);
@@ -279,15 +314,15 @@ def with_version(page):
 
 
 # ---------- web確認問題（一問一答を1問ずつ、web で） ----------
-def load_web():
-    """questions.csv を 編→章→節→問題 の木にする（回をまたいで同じ編・章・節はまとめる）。
+def load_web(sub):
+    """問題データ（questions.csv など）を 編→章→節→問題 の木にする（回をまたいで同じ編・章・節はまとめる）。
     問題は {"lesson","no","page","q","a","adv"}。頁が空欄の問題は直前の問題の頁を使う。"""
     root = []
     lessons = []
     h1 = h2 = h3 = None
     page = ""
     lesson = ""
-    with open(BASE / "questions.csv", encoding="utf-8") as f:
+    with open(BASE / sub["csv"], encoding="utf-8") as f:
         for r in csv.DictReader(f):
             t = r["type"]
             if t == "lesson":
@@ -354,7 +389,7 @@ WEB_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="theme-color" content="#1b2644">
-<title>企業法 web確認問題</title>
+<title>__NAME__ web確認問題</title>
 __FONTS__
 <script>
   // 文字の設定（タイトル・問題部分それぞれ s/a/c/d）と○の日付の表示を、描画の前に反映する
@@ -576,7 +611,7 @@ __BASE__
       <a class="back" href="./">‹ 戻る</a>
       <button id="setBtn" aria-label="設定"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     </div>
-    <h1 class="disp"><span class="eb">Corporate Law · Web Review</span>企業法 <em>web</em>確認問題</h1>
+    <h1 class="disp"><span class="eb">__EN__ · Web Review</span>__NAME__ <em>web</em>確認問題</h1>
     <section class="prog" aria-label="進み具合">
       <div class="ring" aria-hidden="true">
         <svg viewBox="0 0 64 64"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d9a3"/><stop offset="1" stop-color="#b98f4e"/></linearGradient></defs>
@@ -685,7 +720,7 @@ __TREE__
   document.querySelectorAll("details.q > summary, details.h > summary").forEach(function (sm) {
     sm.addEventListener("click", function (e) { e.preventDefault(); toggle(sm.parentNode); });
   });
-  var KEY = "kigyoho-web-open";
+  var KEY = "__LS__-web-open";
   function save() {
     var keys = [];
     document.querySelectorAll("#tree details.h[open]").forEach(function (d) { keys.push(d.dataset.key); });
@@ -710,8 +745,8 @@ __TREE__
   // ・消さない：□を全部空に戻しても {v:["","",""], t} として残す。見出しが無くなった問題の記録も残す
   // ・合わせ方：問題ごとに t の新しい方を採る（空の端末・古い端末と同期しても、新しい記録は消えない）
   // ・クラウド（DayFlow と同じ Supabase の表）に、本体と日付ごとのバックアップを置く。操作は不要（自動で同期）
-  var CLOUD = "kigyoho:marks";   // 全端末で共通の保存先
-  var MKEY = "kigyoho-toc-marks", BKEY = "kigyoho-backup-day";
+  var CLOUD = "__CLOUD__";   // 全端末で共通の保存先
+  var MKEY = "__LS__-toc-marks", BKEY = "__LS__-backup-day";
   var SUPA_URL = "https://bspylkvejufqinglwfga.supabase.co";
   var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzcHlsa3ZlanVmcWluZ2x3ZmdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MDc5MTAsImV4cCI6MjA5NTA4MzkxMH0.L9yyNoOQQ_hsBPAyut32d3rdgvW1W2mGffHRK2ZaH8w";
   function norm(x) {
@@ -942,7 +977,7 @@ __TREE__
       if (changed) await cloudPut(CLOUD, { marks: merged });
       var day = today();
       if (changed || lsGet(BKEY) !== day) {         // 日付ごとのバックアップ（その日の最新）
-        await cloudPut("kigyoho-backup:" + day, { marks: merged });
+        await cloudPut("__BACKUP__:" + day, { marks: merged });
         lsSet(BKEY, day);
       }
       status("ok");
@@ -959,7 +994,7 @@ __TREE__
 
   sync();
   // 絞り込み：印（すべて／今日の復習／×の数）と回。該当する問題を含む見出しは開く（問題そのものは開かない）
-  var FKEY = "kigyoho-web-filter", fm = "all", fl = "", per = document.getElementById("oldPer");
+  var FKEY = "__LS__-web-filter", fm = "all", fl = "", per = document.getElementById("oldPer");
   var fMode = document.getElementById("fMode"), fLes = document.getElementById("fLes");
   function hit(q) {
     if (fl && q.dataset.l !== fl) return false;
@@ -1033,14 +1068,16 @@ __TREE__
 """
 
 
-def build_web():
-    root, lessons = load_web()
+def build_web(sub):
+    root, lessons = load_web(sub)
     les = "\n".join(f'      <option value="{html.escape(l)}">{html.escape(l)}</option>' for l in lessons)
     page = (WEB_HTML.replace("__FONTS__", FONTS).replace("__BASE__", BASE_CSS)
+            .replace("__NAME__", sub["name"]).replace("__EN__", sub["en"]).replace("__LS__", sub["ls"])
+            .replace("__CLOUD__", sub["cloud"]).replace("__BACKUP__", sub["backup"])
             .replace("__TREE__", web_nodes(root)).replace("__LESSONS__", les))
-    (BASE / "toc.html").write_text(with_version(page), encoding="utf-8")
+    (BASE / sub["page"]).write_text(with_version(page), encoding="utf-8")
     n = sum(web_count(x) for x in root)
-    print(f"web確認問題: {n}問 → toc.html")
+    print(f"{sub['name']} web確認問題: {n}問 → {sub['page']}")
     return n
 
 
@@ -1055,22 +1092,15 @@ def check_font():
                          "  Linux: apt-get install -y fonts-noto-cjk を実行してから、もう一度実行してください。")
 
 
-def main():
-    check_font()
-    chrome = next(c for c in ["google-chrome", "chromium", "chromium-browser",
-                              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
-                  if shutil.which(c) or pathlib.Path(c).exists())
-    lessons = load()
-    if PDF_DIR.exists():
-        shutil.rmtree(PDF_DIR)  # 消した回の PDF が残らないように作り直す
-    PDF_DIR.mkdir()
-    tmp = BASE / "kigyoho.html"
+def build_subject(sub, chrome, tmp):
+    """科目ごとに、回の PDF・web確認問題のページ・問題数（counts）を作り、入口ページのその科目の部分を返す"""
+    lessons = load(sub)
     items = []
     counts = {}
     pages = 0  # ここまでの回のページ数の合計
     for name, data in lessons:
-        fname = f"企業法_{name}.pdf"
-        tmp.write_text(render(name, data, pages), encoding="utf-8")
+        fname = f"{sub['pdf']}_{name}.pdf"
+        tmp.write_text(render(sub, name, data, pages), encoding="utf-8")
         subprocess.run([chrome, "--headless", "--no-sandbox", "--disable-gpu",
                         "--no-pdf-header-footer", f"--print-to-pdf={PDF_DIR / fname}",
                         tmp.as_uri()], check=True, capture_output=True)
@@ -1079,21 +1109,52 @@ def main():
         num = re.search(r"\d+", name)  # 「第3回」→ 03（入口ページの金の数字）
         ln = f"{int(num.group()):02d}" if num else "·"
         # カードの左＝その回だけに絞り込んだ web確認問題、右端の PDF＝その回の PDF
-        items.append(f'    <li data-name="{html.escape(name)}"><a class="lm" data-fresh data-les="{html.escape(name)}" href="toc.html">'
+        items.append(f'    <li data-name="{html.escape(name)}"><a class="lm" data-fresh data-les="{html.escape(name)}" href="{sub["page"]}">'
                      f'<span class="ln">{ln}</span><span class="lt"><span class="lname disp">{html.escape(name)}</span>'
                      f'<span class="n">{nq}問</span></span></a>'
                      f'<a class="lpw" data-pdf href="pdf/{html.escape(fname)}" aria-label="{html.escape(name)}の PDF"><span class="lp">PDF</span></a></li>')
         counts[name] = nq
-        print(f"{name}: {nq}問 → pdf/{fname}")
-    tmp.unlink()
-    nweb = build_web()
-    toc = ('  <a class="feat" data-fresh data-les="" href="toc.html"><span class="fe">Web Review</span>'
-           '<span class="ft disp">企業法 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span>'
-           f'<span class="fn"><b>{nweb}</b>問</span></a>\n')
+        print(f"{sub['name']} {name}: {nq}問 → pdf/{fname}")
+    nweb = build_web(sub)
+    (BASE / sub["counts"]).write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
+    feat = (f'  <a class="feat" data-fresh data-les="" href="{sub["page"]}"><span class="fe">Web Review</span>'
+            f'<span class="ft disp">{sub["name"]} <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span>'
+            f'<span class="fn"><b>{nweb}</b>問</span></a>\n')
+    if items:
+        lst = '  <ul class="les">\n' + "\n".join(items) + '\n  </ul>\n'
+    else:
+        lst = '  <p class="empty">まだ問題がありません</p>\n'
+    return (f'<section class="only" data-sub="{sub["id"]}" data-counts="{sub["counts"]}">\n{feat}'
+            '  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと web確認問題が開きます</small></h2>\n'
+            f'{lst}</section>\n')
+
+
+def main():
+    check_font()
+    chrome = next(c for c in ["google-chrome", "chromium", "chromium-browser",
+                              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+                  if shutil.which(c) or pathlib.Path(c).exists())
+    if PDF_DIR.exists():
+        shutil.rmtree(PDF_DIR)  # 消した回の PDF が残らないように作り直す
+    PDF_DIR.mkdir()
+    tmp = BASE / "kigyoho.html"
+    sections = "".join(build_subject(sub, chrome, tmp) for sub in SUBJECTS)
+    if tmp.exists():
+        tmp.unlink()
+    # 科目の切り替え：選んでいる科目（<html data-sub>）の部分だけを出し、タブを金色にする
+    subcss = "".join(
+        f'  html[data-sub="{x["id"]}"] .only:not([data-sub="{x["id"]}"]) {{ display: none; }}\n'
+        f'  html[data-sub="{x["id"]}"] .subj button[data-sub="{x["id"]}"] {{ color: #1b2644;'
+        ' background: linear-gradient(135deg, #efd8a2 0%, #d0a865 100%); box-shadow: 0 4px 12px rgba(0, 0, 0, .18); }\n'
+        for x in SUBJECTS)
+    tabs = "".join(f'<button class="disp" data-sub="{x["id"]}">{x["name"]}</button>' for x in SUBJECTS)
+    en = "".join(f'<span class="eb only" data-sub="{x["id"]}">{x["en"]}</span>' for x in SUBJECTS)
+    name = "".join(f'<span class="only" data-sub="{x["id"]}">{x["name"]}</span>' for x in SUBJECTS)
     page = (INDEX.replace("__FONTS__", FONTS).replace("__BASE__", BASE_CSS)
-            .replace("__TOC__", toc).replace("__ITEMS__", "\n".join(items)))
+            .replace("__SUBIDS__", json.dumps([x["id"] for x in SUBJECTS])).replace("__SUBCSS__", subcss)
+            .replace("__SUBEN__", en).replace("__SUBNAME__", name).replace("__TABS__", tabs)
+            .replace("__SECTIONS__", sections))
     (BASE / "index.html").write_text(with_version(page), encoding="utf-8")
-    (BASE / "counts.json").write_text(json.dumps(counts, ensure_ascii=False) + "\n", encoding="utf-8")
     print("ok")
 
 

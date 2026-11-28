@@ -5,14 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="theme-color" content="#1b2644">
-<title>企業法 web確認問題</title>
+<title>web確認問題</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Klee+One:wght@400;600&family=Zen+Old+Mincho:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap">
 <script>
-  // タイトルの文字（web確認問題の設定画面で選ぶ。この端末に保存）を、描画の前に反映する
-  try { document.documentElement.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a"; }
-  catch (e) { document.documentElement.dataset.tf = "a"; }
+  // タイトルの文字（web確認問題の設定画面で選ぶ。この端末に保存）と、選んでいる科目を、描画の前に反映する
+  // 科目：#sub=科目のid が付いていればそれ、なければこの端末で前に選んだ科目（最初は企業法）
+  (function () {
+    var de = document.documentElement, ids = ["law", "audit"], h = location.hash.match(/^#sub=(\w+)$/), sub = null;
+    try { de.dataset.tf = localStorage.getItem("kigyoho-font-title") || "a"; sub = localStorage.getItem("kigyoho-subject"); }
+    catch (e) { de.dataset.tf = "a"; }
+    if (h) sub = h[1];
+    de.dataset.sub = ids.indexOf(sub) >= 0 ? sub : ids[0];
+  })();
 </script>
 <style>
   :root {
@@ -48,8 +54,18 @@
   .cover .eb { font-size: 16px; }
   .date { font-family: var(--serif-en); font-size: 15px; font-weight: 500; letter-spacing: .1em; color: rgba(246, 239, 223, .75); }
   h1 { margin: 14px 0 8px; font-size: 36px; font-weight: 700; letter-spacing: .08em; line-height: 1.25; color: #f8f2e4; }
-  h1 span { display: inline-block; margin-left: .35em; font-size: .62em; letter-spacing: .14em; color: var(--gold-l); }
+  h1 small { display: inline-block; margin-left: .35em; font-size: .62em; letter-spacing: .14em; color: var(--gold-l); }
   .lead { margin: 0; font-size: 13px; letter-spacing: .24em; color: rgba(246, 239, 223, .78); }
+  /* 科目の切り替え（表紙の中。選んでいる科目は金色） */
+  .subj { display: inline-flex; gap: 4px; margin-top: 18px; padding: 4px; border-radius: 999px;
+    background: rgba(255, 255, 255, .06); border: 1px solid rgba(220, 192, 138, .32); }
+  .subj button { font: inherit; font-size: 15px; font-weight: 700; letter-spacing: .1em; color: rgba(246, 239, 223, .82);
+    background: none; border: 0; border-radius: 999px; padding: 8px 20px; min-height: 38px; cursor: pointer; }
+  html[data-sub="law"] .only:not([data-sub="law"]) { display: none; }
+  html[data-sub="law"] .subj button[data-sub="law"] { color: #1b2644; background: linear-gradient(135deg, #efd8a2 0%, #d0a865 100%); box-shadow: 0 4px 12px rgba(0, 0, 0, .18); }
+  html[data-sub="audit"] .only:not([data-sub="audit"]) { display: none; }
+  html[data-sub="audit"] .subj button[data-sub="audit"] { color: #1b2644; background: linear-gradient(135deg, #efd8a2 0%, #d0a865 100%); box-shadow: 0 4px 12px rgba(0, 0, 0, .18); }
+
   main.wrap { position: relative; margin-top: -44px; padding-bottom: 48px; }
   /* web確認問題（表紙に少し重ねる） */
   .feat { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 16px;
@@ -87,6 +103,8 @@
   .lt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
   .lname { font-size: 19px; font-weight: 700; letter-spacing: .06em; }
   .les .n { font-size: 12.5px; color: var(--mute); }
+  .empty { margin: 0; padding: 22px 16px; border-radius: 14px; border: 1px dashed var(--line2); text-align: center;
+    font-size: 14px; color: var(--ink2); background: var(--card); }
   .lp { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--gold-d);
     border: 1px solid rgba(163, 125, 69, .5); border-radius: 999px; padding: 3px 9px; }
 </style>
@@ -94,12 +112,14 @@
 <body>
 <header class="cover">
   <div class="wrap">
-    <div class="top"><span class="eb">Corporate Law</span><span class="date" id="date"></span></div>
-    <h1 class="disp">企業法<span>web確認問題</span></h1>
+    <div class="top"><span class="eb only" data-sub="law">Corporate Law</span><span class="eb only" data-sub="audit">Auditing</span><span class="date" id="date"></span></div>
+    <h1 class="disp"><span class="only" data-sub="law">企業法</span><span class="only" data-sub="audit">監査論</span><small>web確認問題</small></h1>
     <p class="lead">公認会計士試験</p>
+    <nav class="subj" aria-label="科目"><button class="disp" data-sub="law">企業法</button><button class="disp" data-sub="audit">監査論</button></nav>
   </div>
 </header>
 <main class="wrap">
+<section class="only" data-sub="law" data-counts="counts.json">
   <a class="feat" data-fresh data-les="" href="toc.html"><span class="fe">Web Review</span><span class="ft disp">企業法 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span><span class="fn"><b>66</b>問</span></a>
   <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと web確認問題が開きます</small></h2>
   <ul class="les">
@@ -107,6 +127,12 @@
     <li data-name="第2回"><a class="lm" data-fresh data-les="第2回" href="toc.html"><span class="ln">02</span><span class="lt"><span class="lname disp">第2回</span><span class="n">10問</span></span></a><a class="lpw" data-pdf href="pdf/企業法_第2回.pdf" aria-label="第2回の PDF"><span class="lp">PDF</span></a></li>
     <li data-name="第3回"><a class="lm" data-fresh data-les="第3回" href="toc.html"><span class="ln">03</span><span class="lt"><span class="lname disp">第3回</span><span class="n">48問</span></span></a><a class="lpw" data-pdf href="pdf/企業法_第3回.pdf" aria-label="第3回の PDF"><span class="lp">PDF</span></a></li>
   </ul>
+</section>
+<section class="only" data-sub="audit" data-counts="audit_counts.json">
+  <a class="feat" data-fresh data-les="" href="audit.html"><span class="fe">Web Review</span><span class="ft disp">監査論 <em>web</em>確認問題</span><span class="fd">1問ずつ答えを開いて、○×で復習</span><span class="fn"><b>0</b>問</span></a>
+  <h2 class="lh"><span class="eb">Lessons</span><span class="disp">授業の回</span><small>選ぶと web確認問題が開きます</small></h2>
+  <p class="empty">まだ問題がありません</p>
+</section>
 </main>
 <script>
   // 今日の日付（表紙の右上）
@@ -123,23 +149,36 @@
       location.href = a.getAttribute("href") + "?v=" + Date.now() + (les === null ? "" : "#les=" + encodeURIComponent(les));
     });
   });
-  // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json から表示し直す
+  // 科目の切り替え（この端末に保存）。#sub= は読んだら URL から消す
+  document.querySelectorAll(".subj button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.documentElement.dataset.sub = b.dataset.sub;
+      try { localStorage.setItem("kigyoho-subject", b.dataset.sub); } catch (e) {}
+    });
+  });
+  if (/^#sub=/.test(location.hash)) {
+    try { localStorage.setItem("kigyoho-subject", document.documentElement.dataset.sub); } catch (e) {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  // 入口ページ自体が古いキャッシュでも、問題数は毎回最新の counts.json（科目ごと）から表示し直す
   function refreshCounts() {
-    fetch("counts.json?v=" + Date.now(), { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .then(function (counts) {
-        document.querySelectorAll("li[data-name]").forEach(function (li) {
-          var name = li.getAttribute("data-name");
-          if (name in counts) li.querySelector(".n").textContent = counts[name] + "問";
-        });
-      })
-      .catch(function () {});
+    document.querySelectorAll("section[data-counts]").forEach(function (sec) {
+      fetch(sec.getAttribute("data-counts") + "?v=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (counts) {
+          sec.querySelectorAll("li[data-name]").forEach(function (li) {
+            var name = li.getAttribute("data-name");
+            if (name in counts) li.querySelector(".n").textContent = counts[name] + "問";
+          });
+        })
+        .catch(function () {});
+    });
   }
   refreshCounts();
   window.addEventListener("pageshow", refreshCounts);
 </script>
 <script>
-  var APP_VERSION = "706d5af2df11";
+  var APP_VERSION = "6099746483ae";
   async function checkUpdate() {
     try {
       var r = await fetch(location.pathname + "?t=" + Date.now(), { cache: "no-store" });
